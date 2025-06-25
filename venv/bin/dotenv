@@ -1,4 +1,4 @@
-#!/home/jacob/LB-Tournament-Arc/tournament_env/bin/python3
+#!/home/jacob/LB-Tournament-Arc/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

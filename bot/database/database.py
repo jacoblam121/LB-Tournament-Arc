@@ -8,7 +8,11 @@ from sqlalchemy import select, update, delete, func
 from contextlib import asynccontextmanager
 
 from bot.config import Config
-from bot.database.models import Base, Player, Game, Challenge, Tournament, EloHistory, Ticket, ChallengeStatus, MatchResult, Cluster, Event
+from bot.database.models import (
+    Base, Player, Game, Challenge, Tournament, EloHistory, Ticket, 
+    ChallengeStatus, MatchResult, Cluster, Event,
+    Match, MatchParticipant, MatchStatus, MatchFormat  # Phase 2A2: Match models
+)
 from bot.utils.logger import setup_logger
 
 class Database:

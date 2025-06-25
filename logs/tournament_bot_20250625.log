@@ -220,3 +220,164 @@
 2025-06-25 00:32:40 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
 2025-06-25 00:32:40 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
 2025-06-25 00:32:41 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:13:06 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:13:06 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:13:06 - bot.database.database - INFO - Initializing default games...
+2025-06-25 01:13:06 - bot.database.database - INFO - Added 10 default games
+2025-06-25 01:13:06 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 01:13:06 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 01:13:06 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 01:13:06 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 01:13:06 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 01:13:06 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 01:13:06 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 01:13:06 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:13:31 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:13:31 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:13:31 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:27:44 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:27:44 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:27:44 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:27:49 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:27:49 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:27:49 - bot.database.database - INFO - Initializing default games...
+2025-06-25 01:27:49 - bot.database.database - INFO - Added 10 default games
+2025-06-25 01:27:49 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 01:27:49 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 01:27:49 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 01:27:49 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 01:27:49 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 01:27:49 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 01:27:49 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 01:27:49 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:28:05 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:28:05 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:28:05 - bot.database.database - INFO - Initializing default games...
+2025-06-25 01:28:05 - bot.database.database - INFO - Added 10 default games
+2025-06-25 01:28:05 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 01:28:05 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 01:28:05 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 01:28:05 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 01:28:05 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 01:28:05 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 01:28:05 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 01:28:05 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:28:19 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:28:19 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:28:19 - bot.database.database - INFO - Initializing default games...
+2025-06-25 01:28:19 - bot.database.database - INFO - Added 10 default games
+2025-06-25 01:28:19 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 01:28:19 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 01:28:19 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 01:28:19 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 01:28:19 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 01:28:19 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 01:28:19 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 01:28:19 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:28:46 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:28:46 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:28:46 - bot.database.database - INFO - Initializing default games...
+2025-06-25 01:28:46 - bot.database.database - INFO - Added 10 default games
+2025-06-25 01:28:46 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 01:28:46 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 01:28:46 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 01:28:46 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 01:28:46 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 01:28:46 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 01:28:46 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 01:28:46 - bot.database.database - INFO - Database connection closed
