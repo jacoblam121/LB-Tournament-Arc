@@ -1,0 +1,25 @@
+Type,Name,Earning Method,Amount,Cooldown/Limit
+Participation,Participation Trophy,play a match (engagement bait),5,none
+,First Blood,play first match in any event,50,once per event
+,Hot Tourist Destinations,play a match in all clusters,250,one time
+Game Rewards,LightFalcon Bounty,beat jacob for the first time in any event,50,once per event
+,Boston Scott (Giant Slayer),win a 1v1 against someone with 200+ more elo than you,25,none
+,Hot Streak,win 3 matches in a row,50,losses reset streak
+Gambling,Alex Moment,gamble on another player's match,Varies,none
+,,,,
+Type,Name,Description,Amount,Notes
+Collusion (affects overall score),Drop Lowest Test,"At final tally, remove worst cluster score from score calculation",1000,
+,Inflation,Buy +10 points towards final score,200+,Cost doubles with each purchase
+Gambling,Ticket Wager,"When challenging someone, attach a wager",1+,"if you win, keep tickets, if lose winner gets the amount; supposed to incentivize reluctant opponents to play"
+Bounty,Bounty (50),Places 50 ticket bounty on another player for 48 hours,100,next person to beat them in any 1v1 gets the tickets
+,Bounty (100),Places 100 ticket bounty on another player for 48 hours,200,next person to beat them in any 1v1 gets the tickets
+,Bounty (200),Places 200 ticket bounty on another player for 48 hours,400,next person to beat them in any 1v1 gets the tickets
+Leverage,0.5x Leverage,0.5x elo match (opponent must agree),50,
+,2x Leverage,2x elo match (opponent must agree),150,
+,3x Leverage,3x elo match (opponent must agree),300,
+,5x Leverage,5x elo match (opponent must agree),500,
+,0.5x Leverage (FORCED),0.5x elo match,100,
+,1.5x Leverage (FORCED),1.5x elo match,300,
+Tournament/System Influence,Sponsorship,increase shard of the crown bonus pool for a specific event,1+,increases by 1 elo point for every ticket spent
+,Host Tournament,sponsor a local tournament in any single event,500,"1st gets 70% of tickets, 2nd gets 20%, 3rd gets 10%; the prize pool is the 500 ticket sponsorship, no entry fee"
+,Invis Potion,hide your elo for one cluster,200,"lasts one week, can only have one active at a time"
