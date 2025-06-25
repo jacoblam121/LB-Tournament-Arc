@@ -381,3 +381,234 @@
 2025-06-25 01:28:46 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
 2025-06-25 01:28:46 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
 2025-06-25 01:28:46 - bot.database.database - INFO - Database connection closed
+2025-06-25 01:53:39 - bot.database.database - INFO - Initializing database...
+2025-06-25 01:53:39 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 01:53:39 - bot.database.database - INFO - Initializing default games...
+2025-06-25 01:53:39 - bot.database.database - INFO - Added 10 default games
+2025-06-25 01:53:39 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 01:53:39 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 01:53:39 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 01:53:39 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 01:53:39 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 01:53:39 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 01:53:39 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created Match 1 from Challenge 1 (Challenger: 1, Challenged: 2)
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created Match 2 from Challenge 2 (Challenger: 1, Challenged: 1)
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 99999: Challenge 99999 not found
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 3: Challenge 3 is not completed (status: pending)
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 4: Challenge 4 missing result data
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 3 for Event 62 with 8 participants
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created team Match 4 for Event 63 with 6 participants
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created Team Match 4 with teams: {'Team A': [1, 2, 3], 'Team B': [4, 5, 6]}
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create FFA match: Event 99999 not found
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 1 < 3
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create FFA match: Too many participants: 20 > 16
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 2 < 3
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 2 < 3
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to create FFA match: Event 64 does not support FFA matches (scoring_type: Leaderboard)
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 5 for Event 62 with 4 participants
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully completed Match 5 with 4 participants. Rating changes: [(1, 26), (2, 9), (3, -9), (4, -26)]
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 6 for Event 62 with 4 participants
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 6: Gap in placements: [1, 3, 4]
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 7 for Event 62 with 3 participants
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 99999: Match 99999 not found
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing results for players: {2, 3}
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: Results for non-participants: {99999}
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: All placements must be positive integers
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: All placements must be positive integers
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 10 for 3 participants
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 4 for 3 participants
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 4 for 3 participants
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: 'player_id'
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 7: 'placement'
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 8 for Event 62 with 3 participants
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully completed Match 8 with 3 participants. Rating changes: [(1, 23), (2, 0), (3, -23)]
+2025-06-25 01:53:39 - bot.database.match_operations - ERROR - Failed to complete Match 8: Match 8 is already completed
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 9 for Event 62 with 16 participants
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully completed Match 9 with 16 participants. Rating changes: [(1, 33), (2, 30), (3, 27), (4, 22), (5, 17), (6, 6), (7, 4), (8, 1), (9, -1), (10, -4), (11, -6), (12, -8), (13, -11), (14, -13), (15, -15), (16, -17)]
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully created ffa Match 10 for Event 62 with 3 participants
+2025-06-25 01:53:39 - bot.database.match_operations - INFO - Successfully completed Match 10 with 3 participants. Rating changes: [(1, 21), (2, 0), (3, -10)]
+2025-06-25 01:53:40 - bot.database.match_operations - INFO - Successfully created ffa Match 11 for Event 62 with 3 participants
+2025-06-25 01:53:40 - bot.database.match_operations - INFO - Cancelled Match 11: Test cancellation
+2025-06-25 01:53:40 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 01:53:40 - bot.database.database - INFO - Database connection closed
+2025-06-25 02:06:40 - bot.database.database - INFO - Initializing database...
+2025-06-25 02:06:40 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 02:06:41 - bot.database.database - INFO - Initializing default games...
+2025-06-25 02:06:41 - bot.database.database - INFO - Added 10 default games
+2025-06-25 02:06:41 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 02:06:41 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 02:06:41 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 02:06:41 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 02:06:41 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 02:06:41 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 02:06:41 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created Match 1 from Challenge 1 (Challenger: 1, Challenged: 2)
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created Match 2 from Challenge 2 (Challenger: 1, Challenged: 1)
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 99999: Challenge 99999 not found
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 3: Challenge 3 is not completed (status: pending)
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 4: Challenge 4 missing result data
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 3 for Event 62 with 8 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created team Match 4 for Event 63 with 6 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created Team Match 4 with teams: {'Team A': [1, 2, 3], 'Team B': [4, 5, 6]}
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create FFA match: Event 99999 not found
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 1 < 3
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create FFA match: Too many participants: 20 > 16
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 2 < 3
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 2 < 3
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to create FFA match: Event 64 does not support FFA matches (scoring_type: Leaderboard)
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 5 for Event 62 with 4 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully completed Match 5 with 4 participants. Rating changes: [(1, 26), (2, 9), (3, -9), (4, -26)]
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 6 for Event 62 with 4 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully completed Match 6 with 4 participants. Rating changes: [(1, 17), (2, 15), (3, -8), (4, -24)]
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 7 for Event 62 with 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 99999: Match 99999 not found
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing results for players: {2, 3}
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Results for non-participants: {99999}
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: All placements must be positive integers
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: All placements must be positive integers
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 10 for 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 4 for 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 4 for 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing 'player_id' key in result at index 0
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing 'placement' key in result at index 0
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 8 for Event 62 with 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully completed Match 8 with 3 participants. Rating changes: [(1, 22), (2, -1), (3, -21)]
+2025-06-25 02:06:41 - bot.database.match_operations - ERROR - Failed to complete Match 8: Match 8 is already completed
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 9 for Event 62 with 16 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully completed Match 9 with 16 participants. Rating changes: [(1, 32), (2, 29), (3, 14), (4, 12), (5, 17), (6, 6), (7, 4), (8, 1), (9, -1), (10, -4), (11, -6), (12, -8), (13, -11), (14, -13), (15, -15), (16, -17)]
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 10 for Event 62 with 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully completed Match 10 with 3 participants. Rating changes: [(1, 20), (2, 0), (3, -9)]
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Successfully created ffa Match 11 for Event 62 with 3 participants
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Cancelled Match 11: Test cancellation
+2025-06-25 02:06:41 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:06:41 - bot.database.database - INFO - Database connection closed
+2025-06-25 02:12:55 - bot.database.database - INFO - Initializing database...
+2025-06-25 02:12:55 - bot.database.database - INFO - Database initialized successfully
+2025-06-25 02:12:55 - bot.database.database - INFO - Initializing default games...
+2025-06-25 02:12:55 - bot.database.database - INFO - Added 10 default games
+2025-06-25 02:12:55 - bot.database.database - INFO - Initializing clusters and events from CSV...
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 1: Chess
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 2: Pokemon
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 3: FPS
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 4: Roblox Combat
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 5: Roblox Sports/Party
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 6: Tetris
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 7: IO Games
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 8: Rhythm or Rhythm Adjacent
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 9: Fighting
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 10: Minecraft
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 11: Running
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 12: Clash Royale
+2025-06-25 02:12:55 - bot.database.database - WARNING - Invalid scoring type '2v2' for event '2v2', skipping
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 13: Waiver Rat
+2025-06-25 02:12:55 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Rat.quiz (2v2)', skipping
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 14: Trivia
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 15: Poker
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 16: NYT Puzzles
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 17: Elementary Classics
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 18: Party Games
+2025-06-25 02:12:55 - bot.database.database - WARNING - Invalid scoring type '2v2' for event 'Overcooked 2', skipping
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 19: Other
+2025-06-25 02:12:55 - bot.database.database - INFO - Created cluster 20: Meme
+2025-06-25 02:12:55 - bot.database.database - WARNING - Invalid scoring type '???' for event 'AMOGUS', skipping
+2025-06-25 02:12:55 - bot.database.database - INFO - Successfully imported 20 clusters and 60 events
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created Match 1 from Challenge 1 (Challenger: 1, Challenged: 2)
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created Match 2 from Challenge 2 (Challenger: 1, Challenged: 1)
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 99999: Challenge 99999 not found
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 3: Challenge 3 is not completed (status: pending)
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create Match from Challenge 4: Challenge 4 missing result data
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 3 for Event 62 with 8 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created team Match 4 for Event 63 with 6 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created Team Match 4 with teams: {'Team A': [1, 2, 3], 'Team B': [4, 5, 6]}
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create FFA match: Event 99999 not found
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create FFA match: Not enough participants: 1 < 3
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create FFA match: Too many participants: 20 > 16
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create FFA match: Duplicate participants not allowed
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create FFA match: Players not found: {99998, 99999}
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to create FFA match: Event 64 does not support FFA matches (scoring_type: Leaderboard)
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 5 for Event 62 with 4 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully completed Match 5 with 4 participants. Rating changes: [(1, 26), (2, 9), (3, -9), (4, -26)]
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 6 for Event 62 with 4 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully completed Match 6 with 4 participants. Rating changes: [(1, 17), (2, 15), (3, -8), (4, -24)]
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 7 for Event 62 with 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 99999: Match 99999 not found
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing results for players: {2, 3}
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Results for non-participants: {99999}
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: All placements must be positive integers
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: All placements must be positive integers
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 10 for 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 4 for 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Invalid placement 4 for 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing 'player_id' key in result at index 0
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 7: Missing 'placement' key in result at index 0
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 8 for Event 62 with 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully completed Match 8 with 3 participants. Rating changes: [(1, 22), (2, -1), (3, -21)]
+2025-06-25 02:12:55 - bot.database.match_operations - ERROR - Failed to complete Match 8: Match 8 is already completed
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 9 for Event 62 with 16 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully completed Match 9 with 16 participants. Rating changes: [(1, 32), (2, 29), (3, 14), (4, 12), (5, 17), (6, 6), (7, 4), (8, 1), (9, -1), (10, -4), (11, -6), (12, -8), (13, -11), (14, -13), (15, -15), (16, -17)]
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 10 for Event 62 with 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully completed Match 10 with 3 participants. Rating changes: [(1, 20), (2, 0), (3, -9)]
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Successfully created ffa Match 11 for Event 62 with 3 participants
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Cancelled Match 11: Test cancellation
+2025-06-25 02:12:55 - bot.database.match_operations - INFO - Returning existing Match 1 for Challenge 1
+2025-06-25 02:12:55 - bot.database.database - INFO - Database connection closed
