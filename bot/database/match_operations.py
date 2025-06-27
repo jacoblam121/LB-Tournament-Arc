@@ -17,16 +17,20 @@ Architecture Patterns:
 """
 
 import asyncio
+import json
 from typing import List, Dict, Optional, Tuple, Union
-from datetime import datetime, timedelta
-from sqlalchemy import select, update, and_, or_
+from datetime import datetime, timedelta, timezone
+from contextlib import asynccontextmanager
+from sqlalchemy import select, update, and_, or_, delete as sql_delete, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.models import (
     Match, MatchParticipant, MatchStatus, MatchFormat,
     Challenge, ChallengeStatus, MatchResult,
-    Player, Event, EloHistory
+    Player, Event, EloHistory,
+    ConfirmationStatus, MatchResultProposal, MatchConfirmation  # Phase B
 )
 from bot.utils.scoring_strategies import (
     ScoringStrategy, ParticipantResult, ScoringResult,
@@ -64,6 +68,20 @@ class MatchOperations:
         """Initialize with database instance"""
         self.db = database
         self.logger = logger
+    
+    @asynccontextmanager
+    async def _get_session_context(self, session: Optional[AsyncSession] = None):
+        """
+        Provides a session context. Uses the provided session if available,
+        otherwise creates and manages a new session.
+        """
+        if session:
+            # If a session is provided, we do not manage its lifecycle
+            yield session
+        else:
+            # If no session is provided, we create one and manage its lifecycle
+            async with self.db.get_session() as new_session:
+                yield new_session
     
     # ============================================================================
     # Phase 2A2.4a: Bridge Challenge → Match Workflow Functions
@@ -243,7 +261,8 @@ class MatchOperations:
         event_id: int,
         participant_ids: List[int],
         created_by_id: Optional[int] = None,
-        admin_notes: Optional[str] = None
+        admin_notes: Optional[str] = None,
+        session: Optional[AsyncSession] = None
     ) -> Match:
         """
         Creates a direct FFA Match without Challenge workflow (Pattern B).
@@ -270,10 +289,10 @@ class MatchOperations:
             MatchValidationError: If validation fails
             MatchOperationError: If database operation fails
         """
-        async with self.db.get_session() as session:
+        async with self._get_session_context(session) as s:
             try:
                 # Validate event exists and supports FFA
-                result = await session.execute(
+                result = await s.execute(
                     select(Event).where(Event.id == event_id)
                 )
                 event = result.scalar_one_or_none()
@@ -290,7 +309,7 @@ class MatchOperations:
                 if len(set(participant_ids)) != len(participant_ids):
                     raise MatchValidationError("Duplicate participants not allowed")
                 
-                player_result = await session.execute(
+                player_result = await s.execute(
                     select(Player.id).where(Player.id.in_(participant_ids))
                 )
                 existing_player_ids = {row.id for row in player_result}
@@ -323,8 +342,8 @@ class MatchOperations:
                     admin_notes=admin_notes or f"Direct {match_format.value} match creation"
                 )
                 
-                session.add(match)
-                await session.flush()  # Get Match ID
+                s.add(match)
+                await s.flush()  # Get Match ID
                 
                 # Create MatchParticipant records (no placements yet)
                 participants = []
@@ -338,17 +357,27 @@ class MatchOperations:
                         elo_after=None   # Will be set when results recorded
                     )
                     participants.append(participant)
-                    session.add(participant)
+                    s.add(participant)
                 
-                await session.commit()
-                
-                # Reload match with relationships for return
-                result = await session.execute(
-                    select(Match)
-                    .options(selectinload(Match.participants))
-                    .where(Match.id == match.id)
-                )
-                match = result.scalar_one()
+                if not session:  # Only commit if we manage the session
+                    await s.commit()
+                    
+                    # Reload match with relationships for return
+                    result = await s.execute(
+                        select(Match)
+                        .options(selectinload(Match.participants))
+                        .where(Match.id == match.id)
+                    )
+                    match = result.scalar_one()
+                else:
+                    await s.flush()  # Ensure all data is flushed
+                    # Still need to reload to get relationships
+                    result = await s.execute(
+                        select(Match)
+                        .options(selectinload(Match.participants))
+                        .where(Match.id == match.id)
+                    )
+                    match = result.scalar_one()
                 
                 self.logger.info(
                     f"Successfully created {match_format.value} Match {match.id} "
@@ -358,7 +387,8 @@ class MatchOperations:
                 return match
                 
             except Exception as e:
-                await session.rollback()
+                if not session:  # Only rollback if we manage the session
+                    await s.rollback()
                 self.logger.error(f"Failed to create FFA match: {e}")
                 if isinstance(e, MatchOperationError):
                     raise
@@ -458,6 +488,28 @@ class MatchOperations:
                 select(Match)
                 .options(
                     selectinload(Match.participants),
+                    selectinload(Match.event),
+                    selectinload(Match.challenge)
+                )
+                .where(Match.id == match_id)
+            )
+            return result.scalar_one_or_none()
+    
+    async def get_match_with_participants(self, match_id: int) -> Optional[Match]:
+        """
+        Alias for get_match_by_id with participants loaded (for modal functionality).
+        
+        Args:
+            match_id: Match ID to retrieve
+            
+        Returns:
+            Match with participants and player relationships loaded if exists, None otherwise
+        """
+        async with self.db.get_session() as session:
+            result = await session.execute(
+                select(Match)
+                .options(
+                    selectinload(Match.participants).selectinload(MatchParticipant.player),
                     selectinload(Match.event),
                     selectinload(Match.challenge)
                 )
@@ -596,7 +648,7 @@ class MatchOperations:
                 scoring_results = scoring_strategy.calculate_results(participant_results)
                 
                 # Update match status and timing
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 match.status = MatchStatus.COMPLETED
                 match.completed_at = now
                 if not match.started_at:
@@ -838,3 +890,468 @@ class MatchOperations:
             
             self.logger.info(f"Cancelled Match {match_id}: {reason}")
             return match
+    
+    def _validate_results_json(self, results: List[Dict[str, Union[int, str]]]) -> None:
+        """
+        Validate results data structure before JSON serialization.
+        
+        Ensures data is JSON-serializable and has correct structure.
+        
+        Args:
+            results: List of result dictionaries
+            
+        Raises:
+            MatchValidationError: If data structure is invalid
+        """
+        if not isinstance(results, list):
+            raise MatchValidationError("Results must be a list")
+        
+        if not results:
+            raise MatchValidationError("Results list cannot be empty")
+        
+        for i, result in enumerate(results):
+            if not isinstance(result, dict):
+                raise MatchValidationError(f"Result at index {i} must be a dictionary")
+            
+            # Check required keys
+            if "player_id" not in result:
+                raise MatchValidationError(f"Missing 'player_id' in result at index {i}")
+            if "placement" not in result:
+                raise MatchValidationError(f"Missing 'placement' in result at index {i}")
+            
+            # Check data types
+            if not isinstance(result["player_id"], int):
+                raise MatchValidationError(f"player_id must be an integer at index {i}")
+            if not isinstance(result["placement"], int):
+                raise MatchValidationError(f"placement must be an integer at index {i}")
+            
+            # Check value ranges
+            if result["player_id"] <= 0:
+                raise MatchValidationError(f"player_id must be positive at index {i}")
+            if result["placement"] <= 0:
+                raise MatchValidationError(f"placement must be positive at index {i}")
+    
+    # ============================================================================
+    # Phase B: Confirmation System Operations
+    # ============================================================================
+    
+    async def create_result_proposal(
+        self,
+        match_id: int,
+        proposer_id: int,
+        results: List[Dict[str, Union[int, str]]],
+        expires_in_hours: int = 24,
+        discord_channel_id: Optional[int] = None,
+        discord_message_id: Optional[int] = None,
+        session: Optional[AsyncSession] = None
+    ) -> MatchResultProposal:
+        """
+        Create a proposal for match results requiring confirmation.
+        
+        Args:
+            match_id: Match these results belong to
+            proposer_id: Player ID proposing the results
+            results: List of dicts with player_id and placement
+            expires_in_hours: Hours until proposal expires (default 24)
+            discord_channel_id: Channel where proposal was made
+            discord_message_id: Message ID of the proposal
+            session: Optional session for transaction participation
+            
+        Returns:
+            Created MatchResultProposal
+            
+        Raises:
+            MatchValidationError: If match not found or in wrong state
+            MatchOperationError: If proposal already exists
+        """
+        async with self._get_session_context(session) as sess:
+            # Load match with participants
+            result = await sess.execute(
+                select(Match)
+                .options(selectinload(Match.participants).selectinload(MatchParticipant.player))
+                .where(Match.id == match_id)
+            )
+            match = result.scalar_one_or_none()
+            
+            if not match:
+                raise MatchValidationError(f"Match {match_id} not found")
+            
+            if match.status != MatchStatus.PENDING:
+                raise MatchStateError(f"Match {match_id} is not in PENDING status")
+            
+            # Check if proposal already exists
+            existing = await sess.execute(
+                select(MatchResultProposal)
+                .where(MatchResultProposal.match_id == match_id)
+                .where(MatchResultProposal.is_active == True)
+            )
+            if existing.scalar_one_or_none():
+                raise MatchOperationError(f"Active proposal already exists for Match {match_id}")
+            
+            # Validate proposer is a participant
+            participant_ids = [p.player_id for p in match.participants]
+            if proposer_id not in participant_ids:
+                raise MatchValidationError(f"Proposer {proposer_id} is not a participant in Match {match_id}")
+            
+            # Validate results data before storing
+            self._validate_results_json(results)
+            await self._validate_results_data(match, results)
+            
+            # Create proposal
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_in_hours)
+            proposal = MatchResultProposal(
+                match_id=match_id,
+                proposer_id=proposer_id,
+                proposed_results=json.dumps(results),
+                expires_at=expires_at,
+                discord_channel_id=discord_channel_id,
+                discord_message_id=discord_message_id
+            )
+            sess.add(proposal)
+            
+            # Create confirmation records for all participants
+            for participant in match.participants:
+                confirmation = MatchConfirmation(
+                    match_id=match_id,
+                    player_id=participant.player_id,
+                    status=ConfirmationStatus.PENDING
+                )
+                # Auto-confirm for proposer
+                if participant.player_id == proposer_id:
+                    confirmation.status = ConfirmationStatus.CONFIRMED
+                    confirmation.responded_at = datetime.now(timezone.utc)
+                sess.add(confirmation)
+            
+            # Update match status
+            match.status = MatchStatus.AWAITING_CONFIRMATION
+            
+            await sess.commit()
+            
+            # Re-fetch the proposal with all relationships loaded to prevent session detachment issues
+            # This uses the same eager loading strategy as get_proposal_by_id()
+            result = await sess.execute(
+                select(MatchResultProposal)
+                .options(
+                    selectinload(MatchResultProposal.match)
+                    .selectinload(Match.participants)
+                    .selectinload(MatchParticipant.player),
+                    selectinload(MatchResultProposal.proposer)
+                )
+                .where(MatchResultProposal.id == proposal.id)
+            )
+            proposal = result.scalar_one()
+            
+            self.logger.info(f"Created result proposal for Match {match_id} by Player {proposer_id}")
+            return proposal
+    
+    async def get_pending_proposal(self, match_id: int) -> Optional[MatchResultProposal]:
+        """
+        Get active proposal for a match if exists.
+        
+        Args:
+            match_id: Match to check
+            
+        Returns:
+            Active MatchResultProposal or None
+        """
+        async with self.db.get_session() as session:
+            result = await session.execute(
+                select(MatchResultProposal)
+                .options(
+                    selectinload(MatchResultProposal.match),
+                    selectinload(MatchResultProposal.proposer)
+                )
+                .where(MatchResultProposal.match_id == match_id)
+                .where(MatchResultProposal.is_active == True)
+            )
+            return result.scalar_one_or_none()
+    
+    async def get_proposal_by_id(self, proposal_id: int) -> Optional[MatchResultProposal]:
+        """
+        Get proposal by ID with all relationships loaded.
+        
+        Fetches an active, non-expired proposal with eagerly loaded
+        match, participants, and player relationships to prevent N+1 queries.
+        
+        Args:
+            proposal_id: ID of the proposal to fetch
+            
+        Returns:
+            Active MatchResultProposal or None if not found/expired
+        """
+        async with self.db.get_session() as session:
+            result = await session.execute(
+                select(MatchResultProposal)
+                .options(
+                    selectinload(MatchResultProposal.match)
+                    .selectinload(Match.participants)
+                    .selectinload(MatchParticipant.player),
+                    selectinload(MatchResultProposal.proposer)
+                )
+                .where(
+                    MatchResultProposal.id == proposal_id,
+                    MatchResultProposal.is_active == True,
+                    MatchResultProposal.expires_at > func.now()
+                )
+            )
+            return result.scalar_one_or_none()
+    
+    async def record_confirmation(
+        self,
+        match_id: int,
+        player_id: int,
+        status: ConfirmationStatus,
+        reason: Optional[str] = None,
+        discord_user_id: Optional[int] = None,
+        discord_message_id: Optional[int] = None
+    ) -> MatchConfirmation:
+        """
+        Record a player's confirmation/rejection of proposed results.
+        
+        Uses atomic UPDATE to prevent race conditions when multiple
+        users confirm simultaneously.
+        
+        Args:
+            match_id: Match being confirmed
+            player_id: Player responding
+            status: CONFIRMED or REJECTED
+            reason: Optional reason if rejected
+            discord_user_id: Discord user who clicked button
+            discord_message_id: Message where response was made
+            
+        Returns:
+            Updated MatchConfirmation
+            
+        Raises:
+            MatchValidationError: If confirmation record not found
+            MatchStateError: If player already responded
+        """
+        async with self.db.get_session() as session:
+            # Atomic UPDATE with status check in WHERE clause
+            stmt = (
+                update(MatchConfirmation)
+                .where(
+                    MatchConfirmation.match_id == match_id,
+                    MatchConfirmation.player_id == player_id,
+                    MatchConfirmation.status == ConfirmationStatus.PENDING
+                )
+                .values(
+                    status=status,
+                    responded_at=datetime.now(timezone.utc),
+                    rejection_reason=reason if status == ConfirmationStatus.REJECTED else None,
+                    discord_user_id=discord_user_id,
+                    discord_message_id=discord_message_id
+                )
+            )
+            
+            result = await session.execute(stmt)
+            await session.commit()
+            
+            # Check if update succeeded
+            if result.rowcount == 0:
+                # No rows updated - determine why
+                check_result = await session.execute(
+                    select(MatchConfirmation)
+                    .where(
+                        MatchConfirmation.match_id == match_id,
+                        MatchConfirmation.player_id == player_id
+                    )
+                )
+                existing = check_result.scalar_one_or_none()
+                
+                if not existing:
+                    raise MatchValidationError(f"No confirmation record for Player {player_id} in Match {match_id}")
+                else:
+                    raise MatchStateError(f"Player {player_id} already responded to Match {match_id} with status: {existing.status.value}")
+            
+            # Fetch the updated confirmation
+            result = await session.execute(
+                select(MatchConfirmation)
+                .options(selectinload(MatchConfirmation.player))
+                .where(
+                    MatchConfirmation.match_id == match_id,
+                    MatchConfirmation.player_id == player_id
+                )
+            )
+            confirmation = result.scalar_one()
+            
+            self.logger.info(f"Recorded {status.value} from Player {player_id} for Match {match_id}")
+            return confirmation
+    
+    async def check_all_confirmed(self, match_id: int) -> Tuple[bool, List[MatchConfirmation]]:
+        """
+        Check if all participants have confirmed the results.
+        
+        Args:
+            match_id: Match to check
+            
+        Returns:
+            Tuple of (all_confirmed: bool, confirmations: List[MatchConfirmation])
+        """
+        async with self.db.get_session() as session:
+            result = await session.execute(
+                select(MatchConfirmation)
+                .options(selectinload(MatchConfirmation.player))
+                .where(MatchConfirmation.match_id == match_id)
+            )
+            confirmations = result.scalars().all()
+            
+            if not confirmations:
+                return False, []
+            
+            # Check if all are confirmed (no pending or rejected)
+            all_confirmed = all(
+                c.status == ConfirmationStatus.CONFIRMED 
+                for c in confirmations
+            )
+            
+            return all_confirmed, confirmations
+    
+    async def finalize_confirmed_results(self, match_id: int) -> Match:
+        """
+        Finalize results after all confirmations received.
+        
+        Takes the proposed results and applies them using the existing
+        complete_match_with_results method.
+        
+        Args:
+            match_id: Match to finalize
+            
+        Returns:
+            Completed Match with results
+            
+        Raises:
+            MatchValidationError: If no active proposal
+            MatchStateError: If not all players confirmed
+        """
+        async with self.db.get_session() as session:
+            # Get active proposal
+            result = await session.execute(
+                select(MatchResultProposal)
+                .where(MatchResultProposal.match_id == match_id)
+                .where(MatchResultProposal.is_active == True)
+            )
+            proposal = result.scalar_one_or_none()
+            
+            if not proposal:
+                raise MatchValidationError(f"No active proposal for Match {match_id}")
+            
+            # Check all confirmed
+            all_confirmed, _ = await self.check_all_confirmed(match_id)
+            if not all_confirmed:
+                raise MatchStateError(f"Not all players have confirmed results for Match {match_id}")
+            
+            # Parse proposed results
+            results = json.loads(proposal.proposed_results)
+            
+            # Mark proposal as inactive
+            proposal.is_active = False
+            await session.commit()
+            
+            # Use existing method to complete the match
+            return await self.complete_match_with_results(match_id, results)
+    
+    async def cleanup_expired_proposals(self) -> int:
+        """
+        Clean up expired proposals and reset match status.
+        
+        This should be run periodically (e.g., hourly) to handle
+        proposals that expired without all confirmations.
+        
+        Returns:
+            Number of proposals cleaned up
+        """
+        async with self.db.get_session() as session:
+            # Find expired active proposals
+            result = await session.execute(
+                select(MatchResultProposal)
+                .options(selectinload(MatchResultProposal.match))
+                .where(MatchResultProposal.is_active == True)
+                .where(MatchResultProposal.expires_at < datetime.now(timezone.utc))
+            )
+            expired_proposals = result.scalars().all()
+            
+            count = 0
+            for proposal in expired_proposals:
+                # Reset match status if still awaiting
+                if proposal.match and proposal.match.status == MatchStatus.AWAITING_CONFIRMATION:
+                    proposal.match.status = MatchStatus.PENDING
+                
+                # Delete confirmation records
+                await session.execute(
+                    sql_delete(MatchConfirmation).where(
+                        MatchConfirmation.match_id == proposal.match_id
+                    )
+                )
+                
+                # Delete the proposal itself
+                await session.delete(proposal)
+                
+                count += 1
+                self.logger.info(f"Cleaned up expired proposal for Match {proposal.match_id}")
+            
+            await session.commit()
+            return count
+    
+    async def terminate_proposal(self, match_id: int, reason: str = "Rejected by participant") -> None:
+        """
+        Terminate an active result proposal due to rejection, resetting match state.
+        
+        This method performs atomic cleanup when any participant rejects the proposed
+        results. It resets the match status to PENDING and cleans up all related records
+        so that new proposals can be submitted.
+        
+        Args:
+            match_id: Match whose proposal should be terminated
+            reason: Reason for termination (for logging)
+            
+        Raises:
+            MatchValidationError: If no active proposal exists
+            MatchOperationError: If database operation fails
+        """
+        async with self.db.get_session() as session:
+            try:
+                # Find the match and verify it has an active proposal
+                match_result = await session.execute(
+                    select(Match)
+                    .options(selectinload(Match.participants))
+                    .where(Match.id == match_id)
+                )
+                match = match_result.scalar_one_or_none()
+                
+                if not match:
+                    raise MatchValidationError(f"Match {match_id} not found")
+                
+                # Find active proposal for this match
+                proposal_result = await session.execute(
+                    select(MatchResultProposal)
+                    .where(MatchResultProposal.match_id == match_id)
+                    .where(MatchResultProposal.is_active == True)
+                )
+                proposal = proposal_result.scalar_one_or_none()
+                
+                if not proposal:
+                    raise MatchValidationError(f"No active proposal found for Match {match_id}")
+                
+                # Reset match status to PENDING so new proposals can be created
+                if match.status == MatchStatus.AWAITING_CONFIRMATION:
+                    match.status = MatchStatus.PENDING
+                    self.logger.info(f"Reset Match {match_id} status to PENDING due to rejection")
+                
+                # Delete all confirmation records for this match
+                await session.execute(
+                    sql_delete(MatchConfirmation).where(
+                        MatchConfirmation.match_id == match_id
+                    )
+                )
+                
+                # Delete the proposal itself
+                await session.delete(proposal)
+                
+                await session.commit()
+                self.logger.info(f"Successfully terminated proposal for Match {match_id}: {reason}")
+                
+            except Exception as e:
+                await session.rollback()
+                self.logger.error(f"Failed to terminate proposal for Match {match_id}: {e}")
+                raise MatchOperationError(f"Database error terminating proposal for Match {match_id}: {e}")

@@ -1,31 +1,33 @@
 Cluster Number,Cluster,Game Mode,Scoring Type,Notes
 1,Chess,Bullet,1v1,
-,,Rapid,1v1,
-,,FPS,1v1,
+,,Blitz,1v1,
+,,Rapid,1v1,fps chess not available on mac (removed)
 2,Pokemon,Showdown (OU),1v1,
 ,,Showdown (Monotype),1v1,
 ,,Showdown (Random),1v1,
+,,Showdown (Natdex),1v1,
 ,,Infinite Fusion,1v1,
 3,FPS,Operations Siege,Team,
 ,,Arsenal,FFA,
 ,,Krunker,1v1/FFA,
-4,Roblox Combat,Zzzwrite vs imaginethis3 burger king rp,FFA,
+4,Roblox Combat,Zzzwrite vs imaginethis3 burger king rp,1v1/FFA,
 ,,Your Bizarre Adventure,1v1,
 ,,Star Wars Lightsaber Battles 2,1v1,
-5,Roblox Sports/Party,Basketball Legends,Team,
+5,Sports,Basketball Legends,Team,
 ,,Football Fusion,Team,
-,,Outlaster,FFA,
+,,Madden 24,1v1,
+,,NBA 2k25,1v1,
 6,Tetris,40L Sprint,Leaderboard,
 ,,Blitz,Leaderboard,
 ,,VS,1v1,
 7,IO Games,Bonk,1v1/Team/FFA,
 ,,Diep,1v1/Team/FFA,
 ,,Paper,FFA,
-8,Rhythm or Rhythm Adjacent,Osu std,1v1,
+8,Rhythm,Osu std,1v1/FFA,
 ,,Quaver,1v1,
-,,Geometry Dash,1v1,
-9,Fighting,Brawhalla,1v1/2v2,winner is one that gets more progress
+9,Fighting,Brawhalla,1v1/Team,team is 2v2 only
 ,,Tough Love Arena,1v1,
+,,Super Smash Flash 2,1v1,
 10,Minecraft,Blitz Duels,1v1,
 ,,Sumo Duels,1v1,
 ,,Classic Duels,1v1,
@@ -33,33 +35,37 @@ Cluster Number,Cluster,Game Mode,Scoring Type,Notes
 ,,Skywars,FFA,
 ,,Party Games,FFA,
 ,,Parkour,Leaderboard,
-11,Running,40yd Dash,Leaderboard,
-,,1 mile run,Leaderboard,
-,,400m dash,Leaderboard,
+11,Running,40 yd dash,Leaderboard,
+,,1 mi run,Leaderboard,
+,,1x400 run,Leaderboard,
 12,Clash Royale,1v1,1v1,
-,,2v2,2v2,
-13,Waiver Rat,Rat.quiz,1v1,
-,,Rat.face,1v1,first to 10
-,,Rat.mash,1v1,first to 10
-,,Rat.quiz (2v2),2v2,first to 10
-14,Trivia,Seterra,Leaderboard,first to 10
-,,Geoguessr,1v1/FFA,
-,,Sporcle,Leaderboard,
-,,Movie to Movie,Leaderboard,
+,,2v2,Team,team is 2v2 only
+13,Waiver Rat,Rat.quiz,1v1/Team,team is 2v2 only
+,,Rat.face,1v1/Team,team is 2v2 only
+,,Rat.mash,1v1/Team,team is 2v2 only
+,,Rat.hoop,1v1/Team,team is 2v2 only
+14,Trivia,Geoguessr,1v1/FFA,
+,,Protobowl,1v1/FFA,
+,,Cine2nerdle,1v1,
 ,,Puckdoku,Leaderboard,
-15,Poker,Texas Holdem,FFA,
+15,Gambling,Texas Holdem,FFA,
 ,,Sticky Apple,FFA,
-16,NYT Puzzles,Crossword,Leaderboard,
-,,Wordle,Leaderboard,completion time (no error checking/google search)
-,,Connections,Leaderboard,
-,,Spelling Bee,Leaderboard,
+,,Craps,Leaderboard,
+16,NYT Puzzles,Wordle,Leaderboard,completion time (no error checking/google search)
+,,Connections,Leaderboard,completion time (no error checking/google search)
+,,Strands,Leaderboard,completion time (no error checking/google search)
+,,Crossword,Leaderboard,completion time (no error checking/google search)
+,,Spelling Bee,Leaderboard,completion time (no error checking/google search)
 17,Elementary Classics,[2048],Leaderboard,
 ,,NitroType,1v1/FFA,
-18,Party Games,Overcooked 2,2v2,
+,,Fireboy and Watergirl,1v1,completion time
+,,Winnie the Pooh Home Run Derby,Leaderboard,christopher robin any%
+18,Party Games,Overcooked 2,Team,team is 2v2 only
 ,,Stumble Guys,FFA,
 ,,Uno,FFA,
-19,Other,Madden 24,1v1,
+,,Outlaster,FFA,
+19,Other,Geometry Dash,1v1,winner is one that gets more progress
 ,,League of Legends,1v1/Team,
 ,,Roark AOT Game,Team,
-20,Meme,AMOGUS,???,
+20,Meme,AMOGUS,Team,
 ,,Flip a coin 💀,1v1,

@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Text, 
-    ForeignKey, Float, BigInteger, Enum as SQLEnum, UniqueConstraint, CheckConstraint
+    ForeignKey, Float, BigInteger, Enum as SQLEnum, UniqueConstraint, CheckConstraint, event
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -50,6 +50,7 @@ class Event(Base):
     
     # Scoring configuration
     scoring_type = Column(String(20), nullable=False)  # 1v1, FFA, Team, Leaderboard
+    score_direction = Column(String(10), nullable=True)  # "HIGH" or "LOW" for leaderboard events
     crownslayer_pool = Column(Integer, default=300)
     
     # Game configuration (inherited from Game model)
@@ -63,6 +64,7 @@ class Event(Base):
     
     # Relationships
     cluster = relationship("Cluster", back_populates="events")
+    player_stats = relationship("PlayerEventStats", back_populates="event", cascade="all, delete-orphan")
     
     # Unique constraint within cluster
     __table_args__ = (UniqueConstraint('cluster_id', 'name'),)
@@ -79,13 +81,18 @@ class Player(Base):
     username = Column(String(100), nullable=False)
     display_name = Column(String(100))
     
-    # Tournament stats
-    elo_rating = Column(Integer, default=1000)
-    tickets = Column(Integer, default=0)
+    # Tournament stats (global legacy stats)
+    elo_rating = Column(Integer, default=1000)  # Legacy global Elo, supplemented by per-event stats
+    tickets = Column(Integer, default=0)        # Current ticket balance (cache of TicketLedger)
     matches_played = Column(Integer, default=0)
     wins = Column(Integer, default=0)
     losses = Column(Integer, default=0)
     draws = Column(Integer, default=0)
+    
+    # Meta-game fields for leverage system and streak tracking
+    active_leverage_token = Column(String(50), nullable=True)  # e.g., "2x_standard", "1.5x_forced"
+    current_streak = Column(Integer, default=0)               # Current win/loss streak
+    max_streak = Column(Integer, default=0)                   # Highest win streak achieved
     
     # Metadata
     registered_at = Column(DateTime, default=func.now())
@@ -95,6 +102,8 @@ class Player(Base):
     # Relationships
     sent_challenges = relationship("Challenge", foreign_keys="Challenge.challenger_id", back_populates="challenger")
     received_challenges = relationship("Challenge", foreign_keys="Challenge.challenged_id", back_populates="challenged")
+    event_stats = relationship("PlayerEventStats", back_populates="player", cascade="all, delete-orphan")
+    ticket_history = relationship("TicketLedger", back_populates="player", cascade="all, delete-orphan", foreign_keys="TicketLedger.player_id")
     
     @property
     def win_rate(self) -> float:
@@ -239,6 +248,7 @@ class EloHistory(Base):
     
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False, index=True)  # CRITICAL: Per-event audit trail
     
     # Elo change details
     old_elo = Column(Integer, nullable=False)
@@ -257,16 +267,15 @@ class EloHistory(Base):
     # Timestamp
     recorded_at = Column(DateTime, default=func.now())
     
-    # Database constraints for data integrity
+    # Database constraints for data integrity - RELAXED to allow admin adjustments
     __table_args__ = (
-        CheckConstraint(
-            '(challenge_id IS NOT NULL AND match_id IS NULL) OR (challenge_id IS NULL AND match_id IS NOT NULL)',
-            name='elo_history_context_check'
-        ),
+        # Removed overly strict constraint to allow both challenge_id and match_id to be NULL
+        # This supports admin adjustments and per-event Elo changes not tied to specific matches
     )
     
     # Relationships
     player = relationship("Player", foreign_keys=[player_id])
+    event = relationship("Event")  # CRITICAL: Event context for per-event audit trail
     challenge = relationship("Challenge")  # Legacy relationship
     match = relationship("Match")  # New relationship for N-player matches
     opponent = relationship("Player", foreign_keys=[opponent_id])
@@ -310,6 +319,7 @@ class MatchStatus(Enum):
     """Status of a match from creation to completion"""
     PENDING = "pending"      # Match created, waiting for participants
     ACTIVE = "active"        # Match in progress
+    AWAITING_CONFIRMATION = "awaiting_confirmation"  # Results proposed, awaiting confirmation
     COMPLETED = "completed"  # Match finished with results
     CANCELLED = "cancelled"  # Match cancelled by admin
 
@@ -479,3 +489,270 @@ class MatchParticipant(Base):
     def __repr__(self):
         team_info = f", team={self.team_id}" if self.team_id else ""
         return f"<MatchParticipant(player_id={self.player_id}, placement={self.placement}, elo_change={self.elo_change}{team_info})>"
+
+# ============================================================================
+# Phase B: Confirmation System Models
+# ============================================================================
+
+class ConfirmationStatus(Enum):
+    """Status of a player's confirmation for match results"""
+    PENDING = "pending"      # Not yet responded
+    CONFIRMED = "confirmed"  # Player confirmed the results
+    REJECTED = "rejected"    # Player rejected the results
+
+class MatchResultProposal(Base):
+    """
+    Represents a proposed set of match results awaiting confirmation.
+    
+    When a match result is reported, it creates a proposal that all
+    participants must confirm before the results become final.
+    """
+    __tablename__ = 'match_result_proposals'
+    
+    id = Column(Integer, primary_key=True)
+    
+    # Core relationships
+    match_id = Column(Integer, ForeignKey('matches.id'), nullable=False, unique=True)
+    proposer_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    
+    # Proposed results (JSON format for flexibility)
+    # Format: [{"player_id": 123, "placement": 1}, {"player_id": 456, "placement": 2}]
+    proposed_results = Column(Text, nullable=False)
+    
+    # Timing
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=False)
+    
+    # Status tracking
+    is_active = Column(Boolean, default=True)  # False if expired or finalized
+    
+    # Discord integration (for tracking where proposal was made)
+    discord_channel_id = Column(BigInteger)
+    discord_message_id = Column(BigInteger)
+    
+    # Relationships
+    match = relationship("Match")
+    proposer = relationship("Player")
+    
+    def __repr__(self):
+        return f"<MatchResultProposal(match_id={self.match_id}, proposer_id={self.proposer_id}, active={self.is_active})>"
+
+class MatchConfirmation(Base):
+    """
+    Tracks each participant's confirmation/rejection of proposed match results.
+    
+    Each participant in a match gets one confirmation record when results
+    are proposed. They can confirm or reject with an optional reason.
+    """
+    __tablename__ = 'match_confirmations'
+    
+    id = Column(Integer, primary_key=True)
+    
+    # Core relationships
+    match_id = Column(Integer, ForeignKey('matches.id'), nullable=False, index=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False, index=True)
+    
+    # Confirmation details
+    status = Column(SQLEnum(ConfirmationStatus), default=ConfirmationStatus.PENDING, nullable=False)
+    responded_at = Column(DateTime, nullable=True)
+    rejection_reason = Column(String(500), nullable=True)  # Optional reason if rejected
+    
+    # Discord tracking (for audit trail)
+    discord_user_id = Column(BigInteger)  # Who actually clicked confirm/reject
+    discord_message_id = Column(BigInteger)  # Message where they responded
+    
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    
+    # Relationships
+    match = relationship("Match")
+    player = relationship("Player")
+    
+    # Database constraints
+    __table_args__ = (
+        UniqueConstraint('match_id', 'player_id', name='unique_confirmation_per_player_match'),
+    )
+    
+    def __repr__(self):
+        return f"<MatchConfirmation(match_id={self.match_id}, player_id={self.player_id}, status={self.status.value})>"
+
+# ============================================================================
+# Phase 1.1: Per-Event Elo Tracking and Meta-Game Foundation
+# ============================================================================
+
+class PlayerEventStats(Base):
+    """
+    Per-event Elo tracking with dual-track system for hierarchical tournament structure.
+    
+    This model enables per-event Elo ratings while maintaining a dual-track system:
+    - raw_elo: True skill rating (can go below 1000)
+    - scoring_elo: Display rating (floored at 1000)
+    """
+    __tablename__ = 'player_event_stats'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    
+    # Dual-track Elo system
+    raw_elo = Column(Integer, default=1000)
+    scoring_elo = Column(Integer, default=1000)  # max(raw_elo, 1000)
+    
+    # Event-specific stats
+    matches_played = Column(Integer, default=0)
+    wins = Column(Integer, default=0)
+    losses = Column(Integer, default=0)
+    draws = Column(Integer, default=0)
+    
+    # Leaderboard Event fields (for scoring_type="Leaderboard")
+    all_time_leaderboard_elo = Column(Integer, nullable=True)  # From personal best Z-score conversion
+    
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    player = relationship("Player", back_populates="event_stats")
+    event = relationship("Event", back_populates="player_stats")
+    
+    # K-factor tracking
+    @property
+    def is_provisional(self) -> bool:
+        return self.matches_played < 5
+    
+    @property
+    def k_factor(self) -> int:
+        return 40 if self.is_provisional else 20
+    
+    def update_scoring_elo(self):
+        """Apply dual-track Elo floor rule"""
+        self.scoring_elo = max(self.raw_elo, 1000)
+
+    __table_args__ = (
+        UniqueConstraint('player_id', 'event_id', name='uq_player_event_stats'),
+    )
+    
+    def __repr__(self):
+        return f"<PlayerEventStats(player_id={self.player_id}, event_id={self.event_id}, raw_elo={self.raw_elo}, scoring_elo={self.scoring_elo})>"
+
+class PlayerEventPersonalBest(Base):
+    """
+    Tracks personal best scores for leaderboard events.
+    
+    For leaderboard events, this stores the best score achieved by each player.
+    The score interpretation depends on the event's score_direction:
+    - HIGH: Higher scores are better (e.g., points, kills)
+    - LOW: Lower scores are better (e.g., time, speedruns)
+    """
+    __tablename__ = 'player_event_personal_bests'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    
+    best_score = Column(Float, nullable=False)  # Actual score (points, time, etc.)
+    timestamp_achieved = Column(DateTime, default=func.now())
+    
+    # Relationships
+    player = relationship("Player")
+    event = relationship("Event")
+    
+    __table_args__ = (
+        UniqueConstraint('player_id', 'event_id'),
+    )
+    
+    def __repr__(self):
+        return f"<PlayerEventPersonalBest(player_id={self.player_id}, event_id={self.event_id}, best_score={self.best_score})>"
+
+class WeeklyScores(Base):
+    """
+    Temporary weekly leaderboard data for leaderboard events.
+    
+    Stores weekly scores that are archived and cleared periodically.
+    Used for calculating weekly leaderboard rankings.
+    """
+    __tablename__ = 'weekly_scores'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    
+    score = Column(Float, nullable=False)
+    timestamp = Column(DateTime, default=func.now())
+    
+    # Relationships
+    player = relationship("Player")
+    event = relationship("Event")
+    
+    def __repr__(self):
+        return f"<WeeklyScores(player_id={self.player_id}, event_id={self.event_id}, score={self.score})>"
+
+class PlayerWeeklyLeaderboardElo(Base):
+    """
+    Historical weekly leaderboard Elo results.
+    
+    Permanent log of weekly Elo calculations for leaderboard events.
+    Preserves historical data for audits and retrospectives.
+    """
+    __tablename__ = 'player_weekly_leaderboard_elo'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    
+    week_number = Column(Integer, nullable=False)  # Season week number
+    weekly_elo_score = Column(Integer, nullable=False)
+    
+    # Relationships
+    player = relationship("Player")
+    event = relationship("Event")
+    
+    __table_args__ = (
+        UniqueConstraint('player_id', 'event_id', 'week_number'),
+    )
+    
+    def __repr__(self):
+        return f"<PlayerWeeklyLeaderboardElo(player_id={self.player_id}, event_id={self.event_id}, week={self.week_number}, elo={self.weekly_elo_score})>"
+
+class TicketLedger(Base):
+    """
+    Atomic ticket transaction ledger for the meta-game economy.
+    
+    This model provides atomic ticket balance tracking with full audit trail.
+    Each transaction records the change amount, reason, and balance after transaction.
+    """
+    __tablename__ = 'ticket_ledger'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    
+    change_amount = Column(Integer, nullable=False)  # Can be positive or negative
+    reason = Column(String(255), nullable=False)     # e.g., "MATCH_WIN", "ADMIN_GRANT", "SHOP_PURCHASE"
+    balance_after = Column(Integer, nullable=False)  # Computed atomically with SELECT FOR UPDATE
+    
+    # Optional references for context tracking
+    related_match_id = Column(Integer, ForeignKey('matches.id'), nullable=True)
+    related_challenge_id = Column(Integer, ForeignKey('challenges.id'), nullable=True)
+    admin_user_id = Column(Integer, ForeignKey('players.id'), nullable=True)  # For admin transactions
+    
+    # Metadata
+    timestamp = Column(DateTime, default=func.now())
+    
+    # Relationships
+    player = relationship("Player", back_populates="ticket_history", foreign_keys=[player_id])
+    match = relationship("Match", foreign_keys=[related_match_id])
+    challenge = relationship("Challenge", foreign_keys=[related_challenge_id])
+    admin_user = relationship("Player", foreign_keys=[admin_user_id])
+    
+    def __repr__(self):
+        return f"<TicketLedger(player_id={self.player_id}, amount={self.change_amount}, balance_after={self.balance_after}, reason='{self.reason}')>"
+
+# ============================================================================
+# SQLAlchemy Event Listeners for Automatic Dual-Track Enforcement
+# ============================================================================
+
+@event.listens_for(PlayerEventStats, "before_insert")
+@event.listens_for(PlayerEventStats, "before_update")
+def _apply_dual_track_floor(mapper, connection, target):
+    """Automatically apply scoring Elo floor on every insert/update"""
+    target.scoring_elo = max(target.raw_elo, 1000)

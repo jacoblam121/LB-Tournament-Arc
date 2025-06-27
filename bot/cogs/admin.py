@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from typing import Optional
 from bot.config import Config
 
 class AdminCog(commands.Cog):
@@ -52,6 +53,56 @@ class AdminCog(commands.Cog):
                 
         except Exception as e:
             await ctx.send(f"❌ Error getting database stats: {e}")
+    
+    @commands.hybrid_command(name='admin-populate-data')
+    async def populate_data(self, ctx):
+        """Load/refresh clusters and events from CSV (Owner only)"""
+        try:
+            # Send initial response
+            embed = discord.Embed(
+                title="🔄 Starting CSV Data Population",
+                description="Loading clusters and events from CSV file...",
+                color=discord.Color.blue()
+            )
+            await ctx.send(embed=embed)
+            
+            # Import and run population
+            try:
+                from populate_from_csv import populate_clusters_and_events
+                results = await populate_clusters_and_events()
+                
+                # Success response
+                embed = discord.Embed(
+                    title="✅ CSV Population Completed",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="Clusters Created", value=results['clusters_created'], inline=True)
+                embed.add_field(name="Events Created", value=results['events_created'], inline=True)
+                embed.add_field(name="Events Skipped", value=results['events_skipped'], inline=True)
+                
+                await ctx.send(embed=embed)
+                
+            except ImportError:
+                # Fallback to database method if populate_from_csv.py not available
+                async with self.bot.db.get_session() as session:
+                    await self.bot.db.import_clusters_and_events_from_csv(session, clear_existing=True)
+                
+                embed = discord.Embed(
+                    title="✅ CSV Import Completed (Basic)",
+                    description="Used fallback import method. Check logs for details.",
+                    color=discord.Color.orange()
+                )
+                await ctx.send(embed=embed)
+                
+        except Exception as e:
+            embed = discord.Embed(
+                title="❌ CSV Population Failed",
+                description=f"Error: {str(e)}",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
+    
+    
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))

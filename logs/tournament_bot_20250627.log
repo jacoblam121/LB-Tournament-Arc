@@ -1,0 +1,124 @@
+2025-06-27 00:04:00 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-27 00:04:00 - bot.database.database - INFO - Initializing database...
+2025-06-27 00:04:00 - bot.database.database - INFO - Database initialized successfully
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-27 00:04:00 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-27 00:04:00 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-27 00:04:00 - __main__ - INFO - Successfully synced 6 command(s) to guild 743306931522764860
+2025-06-27 00:04:00 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-27 00:04:00 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-27 00:04:00 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-27 00:04:00 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-27 00:04:00 - __main__ - INFO -   - ffa: Create a Free-For-All match
+2025-06-27 00:04:00 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-27 00:04:01 - __main__ - INFO - Successfully synced 6 command(s) to guild 685704304983932949
+2025-06-27 00:04:01 - __main__ - INFO - Multi-guild sync complete: 12 total command instances deployed
+2025-06-27 00:04:01 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-27 00:04:03 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-27 00:04:03 - __main__ - INFO - Bot is in 2 guilds
+2025-06-27 00:05:34 - bot.ui.views.EventBrowserView - INFO - EventBrowserView initialized by user 492208498533203970
+2025-06-27 00:05:34 - bot.ui.views.EventBrowserView - INFO - EventBrowserView initialized by user 492208498533203970
+2025-06-27 00:05:34 - bot.ui.views.EventBrowserView - DEBUG - Loaded 20 clusters
+2025-06-27 00:05:34 - bot.ui.views.EventBrowserView - DEBUG - Loaded 20 clusters
+2025-06-27 00:05:34 - bot.ui.views.EventBrowserView - DEBUG - Updated events data: 86 total, page 1/9
+2025-06-27 00:05:34 - bot.ui.views.EventBrowserView - DEBUG - Updated events data: 86 total, page 1/9
+2025-06-27 00:05:35 - bot.ui.views.EventBrowserView - INFO - EventBrowserView started successfully
+2025-06-27 00:05:35 - bot.ui.views.EventBrowserView - INFO - EventBrowserView started successfully
+2025-06-27 00:05:45 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-27 00:05:45 - bot.database.database - INFO - Database connection closed
+2025-06-27 00:05:54 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-27 00:05:54 - bot.database.database - INFO - Initializing database...
+2025-06-27 00:05:54 - bot.database.database - INFO - Database initialized successfully
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-27 00:05:54 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-27 00:05:54 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-27 00:05:54 - __main__ - INFO - Successfully synced 6 command(s) to guild 743306931522764860
+2025-06-27 00:05:54 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-27 00:05:54 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-27 00:05:54 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-27 00:05:54 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-27 00:05:54 - __main__ - INFO -   - ffa: Create a Free-For-All match
+2025-06-27 00:05:54 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-27 00:05:54 - __main__ - INFO - Successfully synced 6 command(s) to guild 685704304983932949
+2025-06-27 00:05:54 - __main__ - INFO - Multi-guild sync complete: 12 total command instances deployed
+2025-06-27 00:05:54 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-27 00:05:56 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-27 00:05:56 - __main__ - INFO - Bot is in 2 guilds
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - INFO - EventBrowserView initialized by user 492208498533203970
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - INFO - EventBrowserView initialized by user 492208498533203970
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - DEBUG - Loaded 20 clusters
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - DEBUG - Loaded 20 clusters
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - DEBUG - Updated events data: 86 total, page 1/9
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - DEBUG - Updated events data: 86 total, page 1/9
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - INFO - EventBrowserView started successfully
+2025-06-27 00:06:06 - bot.ui.views.EventBrowserView - INFO - EventBrowserView started successfully
+2025-06-27 00:07:09 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-27 00:07:09 - bot.database.database - INFO - Database connection closed
+2025-06-27 00:15:05 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-27 00:15:05 - bot.database.database - INFO - Initializing database...
+2025-06-27 00:15:05 - bot.database.database - INFO - Database initialized successfully
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-27 00:15:05 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-27 00:15:05 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-27 00:15:05 - __main__ - INFO - Successfully synced 6 command(s) to guild 743306931522764860
+2025-06-27 00:15:05 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-27 00:15:05 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-27 00:15:05 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-27 00:15:05 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-27 00:15:05 - __main__ - INFO -   - ffa: Create a Free-For-All match
+2025-06-27 00:15:05 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-27 00:15:05 - __main__ - INFO - Successfully synced 6 command(s) to guild 685704304983932949
+2025-06-27 00:15:05 - __main__ - INFO - Multi-guild sync complete: 12 total command instances deployed
+2025-06-27 00:15:05 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-27 00:15:08 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-27 00:15:08 - __main__ - INFO - Bot is in 2 guilds
+2025-06-27 00:17:59 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-27 00:17:59 - bot.database.database - INFO - Initializing database...
+2025-06-27 00:17:59 - bot.database.database - INFO - Database initialized successfully
+2025-06-27 00:17:59 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-27 00:17:59 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-27 00:17:59 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-27 00:17:59 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-27 00:17:59 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-27 00:17:59 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-27 00:18:00 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-27 00:18:00 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-27 00:18:00 - __main__ - INFO - Successfully synced 6 command(s) to guild 743306931522764860
+2025-06-27 00:18:00 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-27 00:18:00 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-27 00:18:00 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-27 00:18:00 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-27 00:18:00 - __main__ - INFO -   - ffa: Create a Free-For-All match
+2025-06-27 00:18:00 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-27 00:18:00 - __main__ - INFO - Successfully synced 6 command(s) to guild 685704304983932949
+2025-06-27 00:18:00 - __main__ - INFO - Multi-guild sync complete: 12 total command instances deployed
+2025-06-27 00:18:00 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-27 00:18:02 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-27 00:18:02 - __main__ - INFO - Bot is in 2 guilds
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - INFO - EventBrowserView initialized by user 492208498533203970 with initial_cluster_id: 3
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - INFO - EventBrowserView initialized by user 492208498533203970 with initial_cluster_id: 3
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - DEBUG - Loaded 20 clusters
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - DEBUG - Loaded 20 clusters
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - DEBUG - Updated events data: 4 total, page 1/1
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - DEBUG - Updated events data: 4 total, page 1/1
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - DEBUG - Cluster dropdown: Setting FPS (ID: 3) as default
+2025-06-27 00:18:16 - bot.ui.views.EventBrowserView - DEBUG - Cluster dropdown: Setting FPS (ID: 3) as default
+2025-06-27 00:18:17 - bot.ui.views.EventBrowserView - INFO - EventBrowserView started successfully
+2025-06-27 00:18:17 - bot.ui.views.EventBrowserView - INFO - EventBrowserView started successfully
+2025-06-27 00:18:22 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-27 00:18:22 - bot.database.database - INFO - Database connection closed

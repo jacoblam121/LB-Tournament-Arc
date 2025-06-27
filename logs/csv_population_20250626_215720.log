@@ -1,0 +1,289 @@
+2025-06-26 21:57:20,310 - __main__ - INFO - Starting CSV population script...
+2025-06-26 21:57:20,310 - bot.database.database - INFO - Initializing database...
+2025-06-26 21:57:20,320 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-26 21:57:20,321 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("clusters")
+2025-06-26 21:57:20,321 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,322 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("events")
+2025-06-26 21:57:20,322 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,323 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("players")
+2025-06-26 21:57:20,323 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,324 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("games")
+2025-06-26 21:57:20,325 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,326 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("challenges")
+2025-06-26 21:57:20,327 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,329 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("tournaments")
+2025-06-26 21:57:20,329 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,330 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("elo_history")
+2025-06-26 21:57:20,330 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,331 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("tickets")
+2025-06-26 21:57:20,331 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,332 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("matches")
+2025-06-26 21:57:20,333 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,334 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("match_participants")
+2025-06-26 21:57:20,334 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,335 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("match_result_proposals")
+2025-06-26 21:57:20,335 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,336 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("match_confirmations")
+2025-06-26 21:57:20,336 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,337 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("player_event_stats")
+2025-06-26 21:57:20,337 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,338 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("player_event_personal_bests")
+2025-06-26 21:57:20,339 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,340 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("weekly_scores")
+2025-06-26 21:57:20,340 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,341 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("player_weekly_leaderboard_elo")
+2025-06-26 21:57:20,341 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,342 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("ticket_ledger")
+2025-06-26 21:57:20,343 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-26 21:57:20,345 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-06-26 21:57:20,346 - bot.database.database - INFO - Database initialized successfully
+2025-06-26 21:57:20,347 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-26 21:57:20,432 - sqlalchemy.engine.Engine - INFO - SELECT count(games.id) AS count_1 
+FROM games
+2025-06-26 21:57:20,432 - sqlalchemy.engine.Engine - INFO - [generated in 0.00035s] ()
+2025-06-26 21:57:20,434 - sqlalchemy.engine.Engine - INFO - SELECT count(clusters.id) AS count_1 
+FROM clusters
+2025-06-26 21:57:20,434 - sqlalchemy.engine.Engine - INFO - [generated in 0.00028s] ()
+2025-06-26 21:57:20,435 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-06-26 21:57:20,436 - __main__ - INFO - Clearing existing clusters and events...
+2025-06-26 21:57:20,436 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-26 21:57:20,437 - sqlalchemy.engine.Engine - INFO - DELETE FROM events
+2025-06-26 21:57:20,437 - sqlalchemy.engine.Engine - INFO - [generated in 0.00018s] ()
+2025-06-26 21:57:20,438 - sqlalchemy.engine.Engine - INFO - DELETE FROM clusters
+2025-06-26 21:57:20,438 - sqlalchemy.engine.Engine - INFO - [generated in 0.00017s] ()
+2025-06-26 21:57:20,439 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-06-26 21:57:20,444 - __main__ - INFO - Existing data cleared successfully
+2025-06-26 21:57:20,445 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-26 21:57:20,447 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,447 - sqlalchemy.engine.Engine - INFO - [generated in 0.00023s] ('Chess', 1, 1)
+2025-06-26 21:57:20,448 - __main__ - INFO - Created cluster 1: Chess
+2025-06-26 21:57:20,449 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,449 - sqlalchemy.engine.Engine - INFO - [cached since 0.002479s ago] ('Pokemon', 2, 1)
+2025-06-26 21:57:20,451 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,451 - sqlalchemy.engine.Engine - INFO - [generated in 0.00014s (insertmanyvalues) 1/3 (ordered; batch not supported)] ('Bullet', 1, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,453 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,453 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/3 (ordered; batch not supported)] ('Blitz', 1, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,454 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,454 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/3 (ordered; batch not supported)] ('Rapid', 1, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,455 - __main__ - INFO - Created cluster 2: Pokemon
+2025-06-26 21:57:20,456 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,456 - sqlalchemy.engine.Engine - INFO - [cached since 0.009608s ago] ('FPS', 3, 1)
+2025-06-26 21:57:20,457 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,457 - sqlalchemy.engine.Engine - INFO - [cached since 0.006077s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Showdown (OU)', 2, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,458 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,458 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('Showdown (Monotype)', 2, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,459 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,459 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('Showdown (Random)', 2, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,460 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,460 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('Infinite Fusion', 2, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,461 - __main__ - INFO - Created cluster 3: FPS
+2025-06-26 21:57:20,462 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,462 - sqlalchemy.engine.Engine - INFO - [cached since 0.01594s ago] ('Roblox Combat', 4, 1)
+2025-06-26 21:57:20,463 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,463 - sqlalchemy.engine.Engine - INFO - [cached since 0.01244s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Operations Siege (Team)', 3, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,464 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,464 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('Arsenal', 3, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,465 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,465 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('Krunker (1v1)', 3, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,466 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,466 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('Krunker (FFA)', 3, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,468 - __main__ - INFO - Created cluster 4: Roblox Combat
+2025-06-26 21:57:20,468 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,469 - sqlalchemy.engine.Engine - INFO - [cached since 0.0222s ago] ('Sports', 5, 1)
+2025-06-26 21:57:20,470 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,470 - sqlalchemy.engine.Engine - INFO - [cached since 0.01917s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Zzzwrite vs imaginethis3 burger king rp (1v1)', 4, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,471 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,471 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('Zzzwrite vs imaginethis3 burger king rp (FFA)', 4, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,472 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,473 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('Your Bizarre Adventure', 4, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,473 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,474 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('Star Wars Lightsaber Battles 2', 4, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,475 - __main__ - INFO - Created cluster 5: Sports
+2025-06-26 21:57:20,475 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,476 - sqlalchemy.engine.Engine - INFO - [cached since 0.02915s ago] ('Tetris', 6, 1)
+2025-06-26 21:57:20,477 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,477 - sqlalchemy.engine.Engine - INFO - [cached since 0.0261s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Basketball Legends (Team)', 5, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,478 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,478 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('Football Fusion (Team)', 5, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,479 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,479 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('Madden 24', 5, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,480 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,480 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('NBA 2k25', 5, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,488 - __main__ - INFO - Created cluster 6: Tetris
+2025-06-26 21:57:20,489 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,490 - sqlalchemy.engine.Engine - INFO - [cached since 0.04358s ago] ('IO Games', 7, 1)
+2025-06-26 21:57:20,492 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,493 - sqlalchemy.engine.Engine - INFO - [cached since 0.04138s ago (insertmanyvalues) 1/3 (ordered; batch not supported)] ('40L Sprint (Leaderboard)', 6, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,494 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,494 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/3 (ordered; batch not supported)] ('Blitz (Leaderboard)', 6, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,495 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,495 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/3 (ordered; batch not supported)] ('VS', 6, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,496 - __main__ - INFO - Created cluster 7: IO Games
+2025-06-26 21:57:20,497 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,497 - sqlalchemy.engine.Engine - INFO - [cached since 0.05086s ago] ('Rhythm', 8, 1)
+2025-06-26 21:57:20,499 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,499 - sqlalchemy.engine.Engine - INFO - [cached since 0.04772s ago (insertmanyvalues) 1/7 (ordered; batch not supported)] ('Bonk (1v1)', 7, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,500 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,500 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/7 (ordered; batch not supported)] ('Bonk (Team)', 7, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,500 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,501 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/7 (ordered; batch not supported)] ('Bonk (FFA)', 7, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,502 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,502 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/7 (ordered; batch not supported)] ('Diep (1v1)', 7, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,502 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,503 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 5/7 (ordered; batch not supported)] ('Diep (Team)', 7, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,503 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,504 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 6/7 (ordered; batch not supported)] ('Diep (FFA)', 7, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,504 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,505 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 7/7 (ordered; batch not supported)] ('Paper', 7, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,506 - __main__ - INFO - Created cluster 8: Rhythm
+2025-06-26 21:57:20,507 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,507 - sqlalchemy.engine.Engine - INFO - [cached since 0.06058s ago] ('Fighting', 9, 1)
+2025-06-26 21:57:20,508 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,509 - sqlalchemy.engine.Engine - INFO - [cached since 0.05754s ago (insertmanyvalues) 1/3 (ordered; batch not supported)] ('Osu std (1v1)', 8, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,510 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,510 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/3 (ordered; batch not supported)] ('Osu std (FFA)', 8, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,511 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,511 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/3 (ordered; batch not supported)] ('Quaver', 8, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,512 - __main__ - INFO - Created cluster 9: Fighting
+2025-06-26 21:57:20,513 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,513 - sqlalchemy.engine.Engine - INFO - [cached since 0.0667s ago] ('Minecraft', 10, 1)
+2025-06-26 21:57:20,515 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,515 - sqlalchemy.engine.Engine - INFO - [cached since 0.06357s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Brawhalla (1v1)', 9, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,516 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,516 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('Brawhalla (Team)', 9, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,517 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,517 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('Tough Love Arena', 9, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,518 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,518 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('Super Smash Flash 2', 9, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,519 - __main__ - INFO - Created cluster 10: Minecraft
+2025-06-26 21:57:20,520 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,521 - sqlalchemy.engine.Engine - INFO - [cached since 0.07419s ago] ('Running', 11, 1)
+2025-06-26 21:57:20,522 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,522 - sqlalchemy.engine.Engine - INFO - [cached since 0.07107s ago (insertmanyvalues) 1/7 (ordered; batch not supported)] ('Blitz Duels', 10, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,523 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,523 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/7 (ordered; batch not supported)] ('Sumo Duels', 10, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,524 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,524 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/7 (ordered; batch not supported)] ('Classic Duels', 10, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,525 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,525 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/7 (ordered; batch not supported)] ('Bedwars', 10, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,526 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,526 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 5/7 (ordered; batch not supported)] ('Skywars', 10, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,527 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,527 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 6/7 (ordered; batch not supported)] ('Party Games', 10, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,528 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,528 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 7/7 (ordered; batch not supported)] ('Parkour (Leaderboard)', 10, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,529 - __main__ - INFO - Created cluster 11: Running
+2025-06-26 21:57:20,530 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,530 - sqlalchemy.engine.Engine - INFO - [cached since 0.08381s ago] ('Clash Royale', 12, 1)
+2025-06-26 21:57:20,531 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,531 - sqlalchemy.engine.Engine - INFO - [cached since 0.08026s ago (insertmanyvalues) 1/3 (ordered; batch not supported)] ('40 yd dash (Leaderboard)', 11, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,532 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,532 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/3 (ordered; batch not supported)] ('1 mi run (Leaderboard)', 11, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,533 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,534 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/3 (ordered; batch not supported)] ('1x400 run (Leaderboard)', 11, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,535 - __main__ - INFO - Created cluster 12: Clash Royale
+2025-06-26 21:57:20,535 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,536 - sqlalchemy.engine.Engine - INFO - [cached since 0.08919s ago] ('Waiver Rat', 13, 1)
+2025-06-26 21:57:20,537 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,537 - sqlalchemy.engine.Engine - INFO - [cached since 0.08596s ago (insertmanyvalues) 1/2 (ordered; batch not supported)] ('1v1', 12, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,538 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,538 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/2 (ordered; batch not supported)] ('2v2 (Team)', 12, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,539 - __main__ - INFO - Created cluster 13: Waiver Rat
+2025-06-26 21:57:20,540 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,541 - sqlalchemy.engine.Engine - INFO - [cached since 0.0942s ago] ('Trivia', 14, 1)
+2025-06-26 21:57:20,542 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,542 - sqlalchemy.engine.Engine - INFO - [cached since 0.0912s ago (insertmanyvalues) 1/8 (ordered; batch not supported)] ('Rat.quiz (1v1)', 13, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,543 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,543 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/8 (ordered; batch not supported)] ('Rat.quiz (Team)', 13, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,544 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,544 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/8 (ordered; batch not supported)] ('Rat.face (1v1)', 13, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,545 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,545 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/8 (ordered; batch not supported)] ('Rat.face (Team)', 13, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,546 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,546 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 5/8 (ordered; batch not supported)] ('Rat.mash (1v1)', 13, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,547 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,547 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 6/8 (ordered; batch not supported)] ('Rat.mash (Team)', 13, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,548 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,548 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 7/8 (ordered; batch not supported)] ('Rat.hoop (1v1)', 13, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,549 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,549 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 8/8 (ordered; batch not supported)] ('Rat.hoop (Team)', 13, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,550 - __main__ - INFO - Created cluster 14: Trivia
+2025-06-26 21:57:20,551 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,551 - sqlalchemy.engine.Engine - INFO - [cached since 0.1049s ago] ('Gambling', 15, 1)
+2025-06-26 21:57:20,553 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,553 - sqlalchemy.engine.Engine - INFO - [cached since 0.1019s ago (insertmanyvalues) 1/6 (ordered; batch not supported)] ('Seterra (Leaderboard)', 14, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,554 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,554 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/6 (ordered; batch not supported)] ('Geoguessr (1v1)', 14, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,555 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,555 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/6 (ordered; batch not supported)] ('Geoguessr (FFA)', 14, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,556 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,556 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/6 (ordered; batch not supported)] ('Sporcle (Leaderboard)', 14, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,557 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,557 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 5/6 (ordered; batch not supported)] ('Movie to Movie (Leaderboard)', 14, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,558 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,558 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 6/6 (ordered; batch not supported)] ('Puckdoku (Leaderboard)', 14, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,559 - __main__ - INFO - Created cluster 15: Gambling
+2025-06-26 21:57:20,560 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,560 - sqlalchemy.engine.Engine - INFO - [cached since 0.1137s ago] ('NYT Puzzles', 16, 1)
+2025-06-26 21:57:20,562 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,562 - sqlalchemy.engine.Engine - INFO - [cached since 0.1106s ago (insertmanyvalues) 1/3 (ordered; batch not supported)] ('Texas Holdem', 15, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,562 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,562 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/3 (ordered; batch not supported)] ('Sticky Apple', 15, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,563 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,564 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/3 (ordered; batch not supported)] ('Craps (Leaderboard)', 15, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,565 - __main__ - INFO - Created cluster 16: NYT Puzzles
+2025-06-26 21:57:20,566 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,566 - sqlalchemy.engine.Engine - INFO - [cached since 0.1197s ago] ('Elementary Classics', 17, 1)
+2025-06-26 21:57:20,567 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,568 - sqlalchemy.engine.Engine - INFO - [cached since 0.1164s ago (insertmanyvalues) 1/5 (ordered; batch not supported)] ('Wordle (Leaderboard)', 16, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,568 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,569 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/5 (ordered; batch not supported)] ('Connections (Leaderboard)', 16, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,569 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,570 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/5 (ordered; batch not supported)] ('Strands (Leaderboard)', 16, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,570 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,571 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/5 (ordered; batch not supported)] ('Crossword (Leaderboard)', 16, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,571 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,571 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 5/5 (ordered; batch not supported)] ('Spelling Bee (Leaderboard)', 16, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,573 - __main__ - INFO - Created cluster 17: Elementary Classics
+2025-06-26 21:57:20,574 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,574 - sqlalchemy.engine.Engine - INFO - [cached since 0.1275s ago] ('Party Games', 18, 1)
+2025-06-26 21:57:20,576 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,576 - sqlalchemy.engine.Engine - INFO - [cached since 0.1248s ago (insertmanyvalues) 1/5 (ordered; batch not supported)] ('[2048] (Leaderboard)', 17, 'Leaderboard', 'HIGH', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,577 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,577 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/5 (ordered; batch not supported)] ('NitroType (1v1)', 17, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,578 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,578 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/5 (ordered; batch not supported)] ('NitroType (FFA)', 17, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,579 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,579 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/5 (ordered; batch not supported)] ('Fireboy and Watergirl', 17, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,580 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,580 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 5/5 (ordered; batch not supported)] ('Winnie the Pooh Home Run Derby (Leaderboard)', 17, 'Leaderboard', 'LOW', 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,581 - __main__ - INFO - Created cluster 18: Party Games
+2025-06-26 21:57:20,582 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,583 - sqlalchemy.engine.Engine - INFO - [cached since 0.1361s ago] ('Other', 19, 1)
+2025-06-26 21:57:20,584 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,584 - sqlalchemy.engine.Engine - INFO - [cached since 0.1331s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Overcooked 2 (Team)', 18, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,585 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,585 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('Stumble Guys', 18, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,586 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,586 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('Uno', 18, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,587 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,587 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('Outlaster', 18, 'FFA', None, 300, 1, 3, 16, 1)
+2025-06-26 21:57:20,589 - __main__ - INFO - Created cluster 19: Other
+2025-06-26 21:57:20,590 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,590 - sqlalchemy.engine.Engine - INFO - [cached since 0.1437s ago] ('Meme', 20, 1)
+2025-06-26 21:57:20,592 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,592 - sqlalchemy.engine.Engine - INFO - [cached since 0.1407s ago (insertmanyvalues) 1/4 (ordered; batch not supported)] ('Geometry Dash', 19, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,593 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,593 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/4 (ordered; batch not supported)] ('League of Legends (1v1)', 19, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,594 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,594 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 3/4 (ordered; batch not supported)] ('League of Legends (Team)', 19, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,595 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,595 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 4/4 (ordered; batch not supported)] ('Roark AOT Game (Team)', 19, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,596 - __main__ - INFO - Created cluster 20: Meme
+2025-06-26 21:57:20,597 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,598 - sqlalchemy.engine.Engine - INFO - [cached since 0.1465s ago (insertmanyvalues) 1/2 (ordered; batch not supported)] ('AMOGUS (Team)', 20, 'Team', None, 300, 1, 4, 10, 1)
+2025-06-26 21:57:20,598 - sqlalchemy.engine.Engine - INFO - INSERT INTO events (name, cluster_id, scoring_type, score_direction, crownslayer_pool, is_active, min_players, max_players, allow_challenges, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-26 21:57:20,599 - sqlalchemy.engine.Engine - INFO - [insertmanyvalues 2/2 (ordered; batch not supported)] ('Flip a coin 💀', 20, '1v1', None, 300, 1, 2, 2, 1)
+2025-06-26 21:57:20,600 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-06-26 21:57:20,605 - bot.database.database - INFO - Database connection closed
+2025-06-26 21:57:20,605 - __main__ - INFO - CSV population completed: 20 clusters, 85 events created, 0 events skipped
