@@ -56,6 +56,7 @@ class EventBrowserView(discord.ui.View):
         self.total_pages = 0
         self.current_events = []
         self.available_clusters = []
+        self.aggregation_mode = True  # Phase 1.5: Default to aggregated view
         
         # Permission check
         self.is_owner = initial_interaction.user.id == Config.OWNER_DISCORD_ID
@@ -95,26 +96,48 @@ class EventBrowserView(discord.ui.View):
     async def _update_events_data(self):
         """Update events data and pagination info."""
         try:
-            # Get filtered events with pagination
-            events = await self.bot.db.get_all_events(
-                cluster_id=self.current_cluster_id,
-                active_only=not self.is_owner
-            )
-            
-            # Apply event type filtering if set
-            if self.current_filter:
-                events = [e for e in events if e.scoring_type == self.current_filter]
-            
-            # Calculate pagination
-            total_events = len(events)
-            self.total_pages = math.ceil(total_events / self.EVENTS_PER_PAGE) if total_events > 0 else 1
-            
-            # Get events for current page
-            start_idx = (self.current_page - 1) * self.EVENTS_PER_PAGE
-            end_idx = start_idx + self.EVENTS_PER_PAGE
-            self.current_events = events[start_idx:end_idx]
-            
-            self.logger.debug(f"Updated events data: {total_events} total, page {self.current_page}/{self.total_pages}")
+            if self.aggregation_mode:
+                # Phase 1.5: Get aggregated events
+                aggregated = await self.bot.db.get_aggregated_events(
+                    cluster_id=self.current_cluster_id,
+                    active_only=not self.is_owner
+                )
+                
+                # Apply event type filtering if set (based on scoring types in aggregation)
+                if self.current_filter:
+                    aggregated = [a for a in aggregated if self.current_filter in a['scoring_types']]
+                
+                # Calculate pagination
+                total_items = len(aggregated)
+                self.total_pages = math.ceil(total_items / self.EVENTS_PER_PAGE) if total_items > 0 else 1
+                
+                # Get items for current page
+                start_idx = (self.current_page - 1) * self.EVENTS_PER_PAGE
+                end_idx = start_idx + self.EVENTS_PER_PAGE
+                self.current_events = aggregated[start_idx:end_idx]
+                
+                self.logger.debug(f"Updated aggregated data: {total_items} total, page {self.current_page}/{self.total_pages}")
+            else:
+                # Original mode: Get all events
+                events = await self.bot.db.get_all_events(
+                    cluster_id=self.current_cluster_id,
+                    active_only=not self.is_owner
+                )
+                
+                # Apply event type filtering if set
+                if self.current_filter:
+                    events = [e for e in events if e.scoring_type == self.current_filter]
+                
+                # Calculate pagination
+                total_events = len(events)
+                self.total_pages = math.ceil(total_events / self.EVENTS_PER_PAGE) if total_events > 0 else 1
+                
+                # Get events for current page
+                start_idx = (self.current_page - 1) * self.EVENTS_PER_PAGE
+                end_idx = start_idx + self.EVENTS_PER_PAGE
+                self.current_events = events[start_idx:end_idx]
+                
+                self.logger.debug(f"Updated events data: {total_events} total, page {self.current_page}/{self.total_pages}")
             
         except Exception as e:
             self.logger.error(f"Failed to update events data: {e}")
@@ -125,6 +148,8 @@ class EventBrowserView(discord.ui.View):
         """Create embed for current view state."""
         # Title with current filters
         title = "Tournament Events"
+        if self.aggregation_mode:
+            title += " (Grouped)"
         if self.is_owner:
             title += " (Admin View)"
         
@@ -151,24 +176,48 @@ class EventBrowserView(discord.ui.View):
                     embed.description += "\n\nUse `/admin-populate-data` to load from CSV."
         else:
             event_lines = []
-            for i, event in enumerate(self.current_events):
+            for i, item in enumerate(self.current_events):
                 # Calculate display number based on page
                 event_number = (self.current_page - 1) * self.EVENTS_PER_PAGE + i + 1
                 
-                # Admin sees status indicators
-                if self.is_owner:
-                    status = "🟢" if event.is_active else "🔴"
-                    cluster_name = event.cluster.name if event.cluster else "Unknown"
-                    event_lines.append(
-                        f"{status} **{event_number}.** {event.name}\n"
-                        f"   └ {event.scoring_type} in {cluster_name}"
-                    )
+                if self.aggregation_mode and isinstance(item, dict):
+                    # Phase 1.5: Aggregated view
+                    base_name = item['base_event_name']
+                    cluster_name = item['cluster_name']
+                    variations = item['variation_count']
+                    scoring_types = item['scoring_types']
+                    
+                    if self.is_owner:
+                        # For aggregated view, show green if any variation is active
+                        # (would need to query for this, so defaulting to green for now)
+                        status = "🟢"
+                        event_lines.append(
+                            f"{status} **{event_number}.** {base_name}\n"
+                            f"   └ {variations} variation{'s' if variations > 1 else ''}: {scoring_types} in {cluster_name}"
+                        )
+                    else:
+                        event_lines.append(
+                            f"**{event_number}.** {base_name}\n"
+                            f"   └ {variations} variation{'s' if variations > 1 else ''}: {scoring_types} in {cluster_name}"
+                        )
                 else:
-                    cluster_name = event.cluster.name if event.cluster else "Unknown" 
-                    event_lines.append(
-                        f"**{event_number}.** {event.name}\n"
-                        f"   └ {event.scoring_type} in {cluster_name}"
-                    )
+                    # Original view mode
+                    event = item
+                    if self.is_owner:
+                        status = "🟢" if event.is_active else "🔴"
+                        cluster_name = event.cluster.name if event.cluster else "Unknown"
+                        scoring_display = event.scoring_type or "TBD"
+                        event_lines.append(
+                            f"{status} **{event_number}.** {event.name}\n"
+                            f"   └ {scoring_display} in {cluster_name}"
+                        )
+                    else:
+                        cluster_name = event.cluster.name if event.cluster else "Unknown" 
+                        scoring_display = event.scoring_type or "TBD"
+                        event_lines.append(
+                            f"**{event_number}.** {event.name}\n"
+                            f"   └ {scoring_display} in {cluster_name}"
+                        )
             
             embed.description = "\n\n".join(event_lines)
         
@@ -180,8 +229,15 @@ class EventBrowserView(discord.ui.View):
         if self.is_owner and self.current_events:
             current_footer = embed.footer.text if embed.footer else ""
             total_count = len(self.current_events)
-            active_count = sum(1 for e in self.current_events if e.is_active)
-            summary = f"Showing {total_count} events ({active_count} active)"
+            
+            # Handle active count based on view mode
+            if self.aggregation_mode:
+                # In aggregated view, we show base events not individual variations
+                summary = f"Showing {total_count} base events"
+            else:
+                # In detailed view, we can count active events
+                active_count = sum(1 for e in self.current_events if e.is_active)
+                summary = f"Showing {total_count} events ({active_count} active)"
             
             if current_footer:
                 embed.set_footer(text=f"{current_footer} • {summary}")
@@ -231,6 +287,16 @@ class EventBrowserView(discord.ui.View):
         )
         home_button.callback = self._home_callback
         self.add_item(home_button)
+        
+        # Phase 1.5: Aggregation toggle button
+        toggle_label = "📊 Detailed View" if self.aggregation_mode else "📋 Grouped View"
+        toggle_button = discord.ui.Button(
+            label=toggle_label,
+            style=discord.ButtonStyle.secondary,
+            row=2
+        )
+        toggle_button.callback = self._toggle_aggregation_callback
+        self.add_item(toggle_button)
     
     def _create_cluster_select(self) -> discord.ui.Select:
         """Create cluster filter dropdown."""
@@ -375,6 +441,25 @@ class EventBrowserView(discord.ui.View):
         except Exception as e:
             self.logger.error(f"Error in home callback: {e}")
             await self._handle_error(interaction, "Failed to reset filters.")
+    
+    async def _toggle_aggregation_callback(self, interaction: discord.Interaction):
+        """Toggle between aggregated and detailed event views."""
+        try:
+            await interaction.response.defer()
+            
+            # Toggle aggregation mode
+            self.aggregation_mode = not self.aggregation_mode
+            
+            # Reset to first page when toggling
+            self.current_page = 1
+            
+            await self._update_view(interaction)
+            
+            self.logger.info(f"Toggled aggregation mode to: {self.aggregation_mode}")
+            
+        except Exception as e:
+            self.logger.error(f"Error in toggle aggregation callback: {e}")
+            await self._handle_error(interaction, "Failed to toggle view mode.")
     
     async def _update_view(self, interaction: discord.Interaction):
         """Update the view with new data and components."""

@@ -652,17 +652,85 @@ class Database:
         return await self.get_event_by_name(event_name, cluster_id)
     
     # ============================================================================
+    # Phase 1.5: UI Aggregation Operations
+    # ============================================================================
+    
+    async def get_aggregated_events(self, cluster_id: Optional[int] = None, active_only: bool = True) -> List[dict]:
+        """Get events aggregated by base_event_name for UI display"""
+        async with self.get_session() as session:
+            # Build base query
+            query = select(
+                Event.base_event_name,
+                func.count(Event.id).label('variation_count'),
+                func.group_concat(Event.scoring_type, ', ').label('scoring_types'),
+                func.min(Event.id).label('primary_event_id'),
+                Event.cluster_id
+            ).group_by(Event.base_event_name, Event.cluster_id)
+            
+            # Apply filters
+            if cluster_id:
+                query = query.where(Event.cluster_id == cluster_id)
+            if active_only:
+                query = query.where(Event.is_active == True)
+            
+            # Filter out events without base_event_name
+            query = query.where(Event.base_event_name.isnot(None))
+            
+            # Order by cluster and base name
+            query = query.order_by(Event.cluster_id, Event.base_event_name)
+            
+            result = await session.execute(query)
+            rows = result.all()
+            
+            # Convert to dictionaries with cluster info
+            aggregated = []
+            for row in rows:
+                # Get cluster info for the primary event
+                cluster_result = await session.execute(
+                    select(Cluster).where(Cluster.id == row.cluster_id)
+                )
+                cluster = cluster_result.scalar_one_or_none()
+                
+                aggregated.append({
+                    'base_event_name': row.base_event_name,
+                    'variation_count': row.variation_count,
+                    'scoring_types': row.scoring_types,
+                    'primary_event_id': row.primary_event_id,
+                    'cluster': cluster,
+                    'cluster_name': cluster.name if cluster else 'Unknown'
+                })
+            
+            return aggregated
+    
+    async def get_events_by_base_name(self, base_event_name: str, cluster_id: Optional[int] = None) -> List[Event]:
+        """Get all event variations for a specific base event name"""
+        async with self.get_session() as session:
+            query = select(Event).options(selectinload(Event.cluster))
+            query = query.where(Event.base_event_name == base_event_name)
+            
+            if cluster_id:
+                query = query.where(Event.cluster_id == cluster_id)
+            
+            query = query.order_by(Event.name)
+            
+            result = await session.execute(query)
+            return result.scalars().all()
+    
+    # ============================================================================
     # Phase 1.1: PlayerEventStats Operations
     # ============================================================================
     
     async def get_or_create_player_event_stats(self, player_id: int, event_id: int, session: AsyncSession) -> PlayerEventStats:
         """Get or create PlayerEventStats for a player in an event (session-aware)"""
-        # Try to get existing stats
+        # Try to get existing stats with a lock to prevent race conditions
+        # NOTE: On SQLite, with_for_update() relies on the database-level write lock,
+        # not true row-level locking. This is safe for atomicity but may limit
+        # write concurrency as the application scales.
         result = await session.execute(
             select(PlayerEventStats).where(
                 (PlayerEventStats.player_id == player_id) &
                 (PlayerEventStats.event_id == event_id)
-            )
+            ).with_for_update()
         )
         stats = result.scalar_one_or_none()
         

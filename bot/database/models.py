@@ -48,8 +48,11 @@ class Event(Base):
     name = Column(String(200), nullable=False)
     cluster_id = Column(Integer, ForeignKey('clusters.id'), nullable=False)
     
+    # UI Aggregation fields
+    base_event_name = Column(String(200), nullable=True, index=True)  # Base name without scoring type suffix for grouping
+    
     # Scoring configuration
-    scoring_type = Column(String(20), nullable=False)  # 1v1, FFA, Team, Leaderboard
+    scoring_type = Column(String(20), nullable=True)  # 1v1, FFA, Team, Leaderboard - DEPRECATED: moving to match level
     score_direction = Column(String(10), nullable=True)  # "HIGH" or "LOW" for leaderboard events
     crownslayer_pool = Column(Integer, default=300)
     
@@ -99,9 +102,7 @@ class Player(Base):
     last_active = Column(DateTime, default=func.now())
     is_active = Column(Boolean, default=True)
     
-    # Relationships
-    sent_challenges = relationship("Challenge", foreign_keys="Challenge.challenger_id", back_populates="challenger")
-    received_challenges = relationship("Challenge", foreign_keys="Challenge.challenged_id", back_populates="challenged")
+    # Challenge relationships now managed via ChallengeParticipant table
     event_stats = relationship("PlayerEventStats", back_populates="player", cascade="all, delete-orphan")
     ticket_history = relationship("TicketLedger", back_populates="player", cascade="all, delete-orphan", foreign_keys="TicketLedger.player_id")
     
@@ -148,9 +149,7 @@ class Challenge(Base):
     
     id = Column(Integer, primary_key=True)
     
-    # Players
-    challenger_id = Column(Integer, ForeignKey('players.id'), nullable=False)
-    challenged_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    # Players managed via ChallengeParticipant table (N-player support)
     
     # Challenge details
     game_id = Column(Integer, ForeignKey('games.id'), nullable=True, default=1)  # Legacy - kept for DB compatibility
@@ -172,21 +171,25 @@ class Challenge(Base):
     completed_at = Column(DateTime)
     
     # Match results (filled when challenge is completed)
-    challenger_result = Column(SQLEnum(MatchResult))
-    challenged_result = Column(SQLEnum(MatchResult))
+    # DEPRECATED: Legacy 2-player result fields - kept for backward compatibility only
+    # NEW DEVELOPMENT: Use Match and MatchParticipant tables for all results
+    # DO NOT WRITE to these fields for new challenges
+    challenger_result = Column(SQLEnum(MatchResult))  # DEPRECATED - see Phase 2.1.1
+    challenged_result = Column(SQLEnum(MatchResult))  # DEPRECATED - see Phase 2.1.1
     
     # Elo changes (calculated after match)
-    challenger_elo_change = Column(Integer, default=0)
-    challenged_elo_change = Column(Integer, default=0)
+    # DEPRECATED: Legacy Elo change tracking - kept for backward compatibility only  
+    # NEW DEVELOPMENT: Use MatchParticipant.elo_change for all Elo tracking
+    challenger_elo_change = Column(Integer, default=0)  # DEPRECATED - see Phase 2.1.1
+    challenged_elo_change = Column(Integer, default=0)  # DEPRECATED - see Phase 2.1.1
     
     # Admin notes
     admin_notes = Column(Text)
     
     # Relationships
-    challenger = relationship("Player", foreign_keys=[challenger_id], back_populates="sent_challenges")
-    challenged = relationship("Player", foreign_keys=[challenged_id], back_populates="received_challenges")
     game = relationship("Game")  # Legacy - for DB compatibility
     event = relationship("Event")
+    participants = relationship("ChallengeParticipant", back_populates="challenge", cascade="all, delete-orphan")
     
     @property
     def is_expired(self) -> bool:
@@ -199,7 +202,7 @@ class Challenge(Base):
         return self.status in [ChallengeStatus.PENDING, ChallengeStatus.ACCEPTED]
     
     def __repr__(self):
-        return f"<Challenge(id={self.id}, challenger={self.challenger_id}, challenged={self.challenged_id}, status={self.status.value})>"
+        return f"<Challenge(id={self.id}, event_id={self.event_id}, status={self.status.value})>"
 
 class Tournament(Base):
     __tablename__ = 'tournaments'
@@ -500,6 +503,52 @@ class ConfirmationStatus(Enum):
     CONFIRMED = "confirmed"  # Player confirmed the results
     REJECTED = "rejected"    # Player rejected the results
 
+class ChallengeRole(Enum):
+    """Role of a participant in a challenge"""
+    CHALLENGER = "challenger"  # Challenge initiator (lowercase for SQL compatibility)
+    CHALLENGED = "challenged"  # Challenge recipient (lowercase for SQL compatibility)
+
+class ChallengeParticipant(Base):
+    """
+    Represents a participant in an N-player challenge.
+    
+    This model enables challenges to support multiple players (FFA, teams)
+    beyond the traditional 1v1 format. Each participant can accept/decline
+    independently and be assigned to teams for team-based challenges.
+    """
+    __tablename__ = 'challenge_participants'
+    
+    id = Column(Integer, primary_key=True)
+    challenge_id = Column(Integer, ForeignKey('challenges.id'), nullable=False, index=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False, index=True)
+    
+    # Participant status (for accept/decline tracking)
+    status = Column(SQLEnum(ConfirmationStatus), default=ConfirmationStatus.PENDING, nullable=False)
+    responded_at = Column(DateTime, nullable=True)
+    
+    # Team support (nullable for non-team challenges)
+    team_id = Column(String(50), nullable=True)  # Team identifier (A, B, Red, Blue, etc.)
+    
+    # Participant role (required for challenge logic)
+    role = Column(SQLEnum(ChallengeRole), nullable=True)  # Start nullable for migration
+    
+    # Note: Will be made NOT NULL after migration completes
+    
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    
+    # Relationships
+    challenge = relationship("Challenge", back_populates="participants")
+    player = relationship("Player")
+    
+    # Constraints - prevent duplicate participants
+    __table_args__ = (
+        UniqueConstraint('challenge_id', 'player_id', name='unique_player_per_challenge'),
+    )
+    
+    def __repr__(self):
+        return f"<ChallengeParticipant(challenge_id={self.challenge_id}, player_id={self.player_id}, status={self.status.value})>"
+
 class MatchResultProposal(Base):
     """
     Represents a proposed set of match results awaiting confirmation.
@@ -606,6 +655,11 @@ class PlayerEventStats(Base):
     
     # Leaderboard Event fields (for scoring_type="Leaderboard")
     all_time_leaderboard_elo = Column(Integer, nullable=True)  # From personal best Z-score conversion
+    
+    # Meta-game economy fields (cumulative accumulators)
+    final_score = Column(Integer, nullable=True)  # Total score points accumulated in this event
+    shard_bonus = Column(Integer, default=0)      # Total Shard of the Crown bonuses earned
+    shop_bonus = Column(Integer, default=0)       # Total shop-purchased bonuses applied
     
     # Metadata
     created_at = Column(DateTime, default=func.now())

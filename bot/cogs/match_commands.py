@@ -20,7 +20,6 @@ import json
 
 from bot.database.match_operations import MatchOperations, MatchOperationError, MatchStateError
 from bot.operations.player_operations import PlayerOperations, PlayerOperationError
-from bot.operations.event_operations import EventOperations, EventOperationError
 from bot.database.models import Match, MatchParticipant, MatchStatus, ConfirmationStatus, Player
 from bot.utils.logger import setup_logger
 from bot.config import Config
@@ -672,7 +671,6 @@ class MatchCommandsCog(commands.Cog):
         # Dependency injection: Operations will be initialized when database is ready
         self.match_ops = None
         self.player_ops = None
-        self.event_ops = None
         
     @commands.Cog.listener()
     async def on_ready(self):
@@ -681,7 +679,6 @@ class MatchCommandsCog(commands.Cog):
         if self.bot.db:
             self.match_ops = MatchOperations(self.bot.db)
             self.player_ops = PlayerOperations(self.bot.db)
-            self.event_ops = EventOperations(self.bot.db)
             print("MatchCommandsCog: All operations initialized successfully")
         else:
             print("MatchCommandsCog: Warning - Database not available")
@@ -939,216 +936,36 @@ class MatchCommandsCog(commands.Cog):
         )
         await ctx.send(embed=embed)
     
-    @commands.hybrid_command(name='ffa', description="Create a Free-For-All match")
+    @commands.hybrid_command(name='ffa', description="[DEPRECATED] Use /challenge command instead")
     @app_commands.describe(players="Players for the match (space-separated mentions)")
     async def create_ffa_match(self, ctx, *, players: str = ""):
-        """Create a Free-For-All match with mentioned players.
+        """[DEPRECATED] Use the /challenge command to start a match.
         
-        Usage:
-        - Prefix: !ffa @user1 @user2 @user3 ...
-        - Slash: /ffa players:@user1 @user2 @user3 ...
-        
-        - Mention 3-16 players to include in the FFA match
-        - Players will be auto-registered if they're not in the system
-        - Creates a new match ready for result reporting
-        - Command author is auto-included if not mentioned
+        This command has been removed to maintain proper tournament hierarchy.
+        All matches must now go through the structured /challenge workflow.
         """
+        embed = discord.Embed(
+            title="⚠️ Command Deprecated",
+            description="The `/ffa` command is no longer available.",
+            color=discord.Color.orange()
+        )
+        embed.add_field(
+            name="New Workflow",
+            value="Please use the `/challenge` command to create matches:\n"
+                  "1. Select a tournament cluster\n"
+                  "2. Choose an event within that cluster\n"
+                  "3. Set match type (1v1, FFA, Team)\n"
+                  "4. Mention your opponents",
+            inline=False
+        )
+        embed.add_field(
+            name="Why the Change?",
+            value="All matches now require proper tournament structure to ensure accurate statistics and fair competition.",
+            inline=False
+        )
+        embed.set_footer(text="This change maintains the integrity of the tournament system")
         
-        # Check if operations are initialized
-        if not self.match_ops or not self.player_ops or not self.event_ops:
-            embed = discord.Embed(
-                title="❌ System Not Ready",
-                description="Match operations are not initialized. Please try again.",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
-            return
-        
-        try:
-            # Parse mentioned users from the string parameter
-            mentioned_users = await self._parse_members_from_string(ctx, players)
-            
-            # Auto-include command author if not already mentioned (BEFORE validation)
-            author_mentioned = ctx.author in mentioned_users
-            if not author_mentioned:
-                mentioned_users.append(ctx.author)
-                self.logger.info(f"Auto-included command author {ctx.author.display_name} in FFA match")
-            
-            # Validate participant count (now includes auto-included author)
-            participant_count = len(mentioned_users)
-            
-            if participant_count < 3:
-                embed = discord.Embed(
-                    title="❌ Not Enough Players",
-                    description=f"FFA matches require at least 3 players. You have provided {participant_count} including yourself.",
-                    color=discord.Color.red()
-                )
-                embed.add_field(
-                    name="Usage Examples",
-                    value="• `!ffa @user1 @user2`\n• `/ffa players:@user1 @user2`",
-                    inline=False
-                )
-                embed.add_field(
-                    name="Note", 
-                    value="You are automatically included. Please mention at least 2 other players.",
-                    inline=False
-                )
-                await ctx.send(embed=embed)
-                return
-            
-            if participant_count > 16:
-                embed = discord.Embed(
-                    title="❌ Too Many Players",
-                    description=f"FFA matches support maximum 16 players. You have {participant_count}.",
-                    color=discord.Color.red()
-                )
-                await ctx.send(embed=embed)
-                return
-            
-            # Check for duplicate users (Discord should handle this, but be safe)
-            unique_user_ids = set(user.id for user in mentioned_users)
-            if len(unique_user_ids) != participant_count:
-                embed = discord.Embed(
-                    title="❌ Duplicate Players",
-                    description="You mentioned some players multiple times. Please mention each player only once.",
-                    color=discord.Color.red()
-                )
-                await ctx.send(embed=embed)
-                return
-            
-            # Send "creating match" message for user feedback
-            creating_embed = discord.Embed(
-                title="🔄 Creating FFA Match...",
-                description=f"Setting up FFA match for {participant_count} players...",
-                color=discord.Color.blue()
-            )
-            creating_message = await ctx.send(embed=creating_embed)
-            
-            try:
-                # Use transaction wrapper for atomic operations
-                async with self.bot.db.transaction() as session:
-                    # Step 1: Convert Discord users to Players (auto-registration)
-                    players = await self.player_ops.bulk_get_or_create_players(mentioned_users, session=session)
-                    
-                    if len(players) != participant_count:
-                        raise Exception(f"Failed to register some players. Got {len(players)} of {participant_count}.")
-                    
-                    # Step 2: Create Event for this FFA match
-                    event = await self.event_ops.create_ffa_event(
-                        participant_count=participant_count,
-                        event_name_suffix=f"by {ctx.author.display_name}",
-                        session=session
-                    )
-                    
-                    # Step 3: Create Match using MatchOperations
-                    player_ids = [player.id for player in players]
-                    # Find creator's player ID if they're participating
-                    creator_player_id = None
-                    for i, user in enumerate(mentioned_users):
-                        if user.id == ctx.author.id:
-                            creator_player_id = players[i].id
-                            break
-                    
-                    match = await self.match_ops.create_ffa_match(
-                        event_id=event.id,
-                        participant_ids=player_ids,
-                        created_by_id=creator_player_id,
-                        session=session
-                    )
-                    
-                    # All operations succeeded, transaction will commit
-                    
-            except Exception as e:
-                # Transaction has been rolled back
-                self.logger.error(f"Failed to create FFA match: {e}")
-                embed = discord.Embed(
-                    title="❌ Match Creation Failed",
-                    description="An error occurred while creating the FFA match. All changes have been rolled back.",
-                    color=discord.Color.red()
-                )
-                embed.add_field(
-                    name="Error Details",
-                    value="Please contact support if this error persists.",
-                    inline=False
-                )
-                await creating_message.edit(embed=embed)
-                # Auto-delete error message after 10 seconds
-                await asyncio.sleep(10)
-                await creating_message.delete()
-                return
-            
-            # Success response
-            embed = discord.Embed(
-                title="✅ FFA Match Created!",
-                description=f"**Match ID:** {match.id}",
-                color=discord.Color.green()
-            )
-            
-            # Add participant list
-            participant_list = "\n".join([
-                f"• {user.display_name}" for user in mentioned_users
-            ])
-            embed.add_field(
-                name=f"Participants ({participant_count})",
-                value=participant_list,
-                inline=False
-            )
-            
-            embed.add_field(
-                name="Event",
-                value=f"{event.name}",
-                inline=True
-            )
-            
-            embed.add_field(
-                name="Status",
-                value="Pending - Waiting for results",
-                inline=True
-            )
-            
-            embed.add_field(
-                name="Next Steps",
-                value=f"Use `!match-report {match.id}` to record results when the match is complete",
-                inline=False
-            )
-            
-            embed.set_footer(text=f"Created by {ctx.author.display_name}")
-            
-            await creating_message.edit(embed=embed)
-            
-        except PlayerOperationError as e:
-            embed = discord.Embed(
-                title="❌ Player Operation Failed",
-                description=f"Failed to process players: {str(e)}",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
-            
-        except EventOperationError as e:
-            embed = discord.Embed(
-                title="❌ Event Creation Failed",
-                description=f"Failed to create event: {str(e)}",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
-            
-        except MatchOperationError as e:
-            embed = discord.Embed(
-                title="❌ Match Creation Failed",
-                description=f"Failed to create match: {str(e)}",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
-            
-        except Exception as e:
-            # Log unexpected errors
-            self.logger.error(f"Unexpected error in create_ffa_match: {e}", exc_info=True)
-            embed = discord.Embed(
-                title="❌ Unexpected Error",
-                description="An unexpected error occurred. Please try again or contact support.",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
+        await ctx.send(embed=embed, ephemeral=True)
     
     @commands.hybrid_command(name='match-report', description="Report match results with placements")
     @app_commands.describe(
@@ -1603,8 +1420,8 @@ class MatchCommandsCog(commands.Cog):
         embed.add_field(
             name="✅ Available Commands",
             value=(
-                "`!ffa @user1 @user2 ...` - Create FFA match (3-16 players)\n"
-                "`!match-report <id> @user1:1 @user2:2 ...` - Record match results"
+                "`!match-report <id> @user1:1 @user2:2 ...` - Record match results\n"
+                "Note: `/ffa` command deprecated - use `/challenge` instead"
             ),
             inline=False
         )

@@ -101,6 +101,9 @@ The system is structured as a pyramid, with each level feeding into the next:
 
 This is the foundational layer where individual game results are processed. Each game in the "Culling Games List" is a unique `Event` with its own Elo leaderboard.
 
+## Clarification on per-event elo ratings
+Events are classfied as each game mode from the LB Culling Games List.csv. The match types are just multiple ways to gain elo in that event. So Diep (1v1), Diep(FFA), and Diep(Team) would NOT have separate elos. They would all share ONE elo under the Diep event. There are simply multiple ways to gain/lose elo in that event. 
+
 *   **1v1 Matches:**
     *   **Calculation:** The standard Elo formula (`ΔR = K × (S - E)`) is applied directly. The winner gains points, the loser loses an equal amount.
 

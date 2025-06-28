@@ -3,6 +3,9 @@
 ## Overview
 Transform the current simplified FFA system into a proper hierarchical tournament structure with per-event Elo ratings, challenge acceptance workflows, and comprehensive admin tools.
 
+## Clarification on per-event elo ratings
+Events are classfied as each game mode from the LB Culling Games List.csv. The match types are just multiple ways to gain elo in that event. So Diep (1v1), Diep(FFA), and Diep(Team) would NOT have separate elos. They would all share ONE elo under the Diep event. There are simply multiple ways to gain/lose elo in that event. 
+
 ## Current State Analysis
 
 ### What Works

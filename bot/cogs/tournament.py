@@ -157,9 +157,11 @@ class TournamentCog(commands.Cog):
                 for i, event in enumerate(events[:15], 1):
                     if is_owner:
                         status = "🟢" if event.is_active else "🔴"
-                        event_list.append(f"{status} **{i}.** {event.name} - {event.scoring_type}")
+                        scoring_display = event.scoring_type or "TBD"
+                        event_list.append(f"{status} **{i}.** {event.name} - {scoring_display}")
                     else:
-                        event_list.append(f"**{i}.** {event.name} - {event.scoring_type}")
+                        scoring_display = event.scoring_type or "TBD"
+                        event_list.append(f"**{i}.** {event.name} - {scoring_display}")
                 
                 embed.description = "\n".join(event_list)
                 

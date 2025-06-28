@@ -28,6 +28,7 @@ class ParticipantResult:
     matches_played: int
     placement: int  # 1 = first place, 2 = second place, etc.
     team_id: Optional[str] = None
+    event_id: Optional[int] = None  # Phase 1.2: Add event context for per-event Elo
 
 @dataclass
 class ScoringResult:

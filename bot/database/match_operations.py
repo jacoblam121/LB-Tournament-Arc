@@ -626,25 +626,37 @@ class MatchOperations:
                 participant_results = []
                 results_by_player = {r["player_id"]: r for r in results}
                 
+                # Phase 1.2: Get event-specific stats for each participant
+                event_id = match.event_id
+                player_event_stats = {}
+                
                 for participant in match.participants:
                     if participant.player_id not in results_by_player:
                         raise MatchValidationError(
                             f"Missing result for participant {participant.player_id}"
                         )
                     
+                    # Get or create event-specific stats
+                    event_stats = await self.db.get_or_create_player_event_stats(
+                        participant.player_id, event_id, session
+                    )
+                    player_event_stats[participant.player_id] = event_stats
+                    
                     result_data = results_by_player[participant.player_id]
                     
+                    # Use event-specific elo and matches for calculations
                     participant_result = ParticipantResult(
                         player_id=participant.player_id,
-                        current_elo=participant.player.elo_rating,
-                        matches_played=participant.player.matches_played,
+                        current_elo=event_stats.raw_elo,  # Use event elo instead of global
+                        matches_played=event_stats.matches_played,  # Use event matches
                         placement=result_data["placement"],
-                        team_id=result_data.get("team_id")
+                        team_id=result_data.get("team_id"),
+                        event_id=event_id  # Pass event context
                     )
                     participant_results.append(participant_result)
                 
                 # Calculate rating changes using appropriate scoring strategy
-                scoring_strategy = await self._get_scoring_strategy(match.event.scoring_type)
+                scoring_strategy = await self._get_scoring_strategy(match.match_format)
                 scoring_results = scoring_strategy.calculate_results(participant_results)
                 
                 # Update match status and timing
@@ -660,10 +672,13 @@ class MatchOperations:
                 for participant in match.participants:
                     result_data = results_by_player[participant.player_id]
                     scoring_result = scoring_results[participant.player_id]
+                    event_stats = player_event_stats[participant.player_id]
                     
                     # Update participant with results
                     participant.placement = result_data["placement"]
-                    participant.elo_before = participant.player.elo_rating
+                    
+                    # Phase 1.2: Use event-specific elo for before/after tracking
+                    participant.elo_before = event_stats.raw_elo
                     participant.elo_change = scoring_result.elo_change
                     participant.pp_change = scoring_result.pp_change
                     participant.points_earned = scoring_result.points_earned
@@ -673,11 +688,33 @@ class MatchOperations:
                     if "team_id" in result_data:
                         participant.team_id = result_data["team_id"]
                     
-                    # Update player's overall rating and stats
+                    # Phase 1.2: Update event-specific elo
+                    await self.db.update_event_elo(
+                        player_id=participant.player_id,
+                        event_id=event_id,
+                        new_raw_elo=participant.elo_after,
+                        match_result=self._determine_match_result(participant.placement, len(match.participants)),
+                        match_id=match.id,
+                        session=session
+                    )
+                    
+                    # Update event-specific matches played
+                    event_stats.matches_played += 1
+                    
+                    # Update event-specific win/loss/draw stats
+                    match_result = self._determine_match_result(participant.placement, len(match.participants))
+                    if match_result == MatchResult.WIN:
+                        event_stats.wins += 1
+                    elif match_result == MatchResult.LOSS:
+                        event_stats.losses += 1
+                    elif match_result == MatchResult.DRAW:
+                        event_stats.draws += 1
+                    
+                    # Phase 1.2: Keep global elo in sync for backward compatibility
                     participant.player.elo_rating = participant.elo_after
                     participant.player.matches_played += 1
                     
-                    # Update win/loss/draw stats
+                    # Update win/loss/draw stats (global only for now)
                     if match.match_format == MatchFormat.ONE_V_ONE:
                         if participant.placement == 1:
                             participant.player.wins += 1
@@ -685,9 +722,10 @@ class MatchOperations:
                             participant.player.losses += 1
                         # Note: Draws handled when both players have placement=1
                     
-                    # Create EloHistory record
+                    # Create EloHistory record - now includes event_id
                     elo_history = EloHistory(
                         player_id=participant.player_id,
+                        event_id=event_id,  # Phase 1.2: Add event context
                         old_elo=participant.elo_before,
                         new_elo=participant.elo_after,
                         elo_change=scoring_result.elo_change,
@@ -695,7 +733,7 @@ class MatchOperations:
                         match_id=match.id,
                         opponent_id=None,   # For multi-player, no single opponent
                         match_result=self._determine_match_result(participant.placement, len(match.participants)),
-                        k_factor=scoring_strategy.get_k_factor(participant.player) if hasattr(scoring_strategy, 'get_k_factor') else 20,
+                        k_factor=event_stats.k_factor,  # Use event-specific k_factor
                         recorded_at=now
                     )
                     elo_history_records.append(elo_history)
@@ -782,18 +820,19 @@ class MatchOperations:
                 raise MatchValidationError(f"Invalid placement sequence: placement {placement} used after position {current_position}")
             current_position += placement_counts[placement]
     
-    async def _get_scoring_strategy(self, scoring_type: str) -> ScoringStrategy:
-        """Get appropriate scoring strategy based on event type"""
-        if scoring_type == "1v1":
+    async def _get_scoring_strategy(self, match_format: MatchFormat) -> ScoringStrategy:
+        """Get appropriate scoring strategy based on match format"""
+        # Map MatchFormat enum to scoring strategy
+        if match_format == MatchFormat.ONE_V_ONE:
             return Elo1v1Strategy()
-        elif scoring_type == "FFA":
+        elif match_format == MatchFormat.FFA:
             return EloFfaStrategy()
-        elif scoring_type == "Team":
+        elif match_format == MatchFormat.TEAM:
             return EloFfaStrategy()  # Team matches use FFA algorithm for now
-        elif scoring_type == "Leaderboard":
+        elif match_format == MatchFormat.LEADERBOARD:
             return PerformancePointsStrategy()
         else:
-            raise MatchValidationError(f"Unknown scoring type: {scoring_type}")
+            raise MatchValidationError(f"Unknown match format: {match_format}")
     
     def _determine_match_result(self, placement: int, total_participants: int) -> MatchResult:
         """Determine MatchResult enum value based on placement"""

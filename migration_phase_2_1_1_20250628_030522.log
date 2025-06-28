@@ -1,0 +1,13 @@
+2025-06-28 03:05:22,363 - __main__ - INFO - ✅ Backup created: tournament_backup_phase_2_1_1_20250628_030522.db
+2025-06-28 03:05:22,363 - __main__ - INFO - SQLite version: 3.45.1
+2025-06-28 03:05:22,364 - __main__ - INFO - 🔧 Starting migration...
+2025-06-28 03:05:22,364 - __main__ - INFO - Step 1: Adding role column (nullable)...
+2025-06-28 03:05:22,367 - __main__ - INFO - ✅ Role column added
+2025-06-28 03:05:22,368 - __main__ - INFO - Step 2: Backfilling existing participants...
+2025-06-28 03:05:22,368 - __main__ - INFO - ✅ All participants have role assigned
+2025-06-28 03:05:22,368 - __main__ - INFO -   - challenged: 6 participants
+2025-06-28 03:05:22,368 - __main__ - INFO -   - challenger: 2 participants
+2025-06-28 03:05:22,368 - __main__ - INFO - ℹ️  Note: NOT NULL constraint will be enforced at application level
+2025-06-28 03:05:22,368 - __main__ - INFO -     Future migration can recreate table with proper constraints if needed
+2025-06-28 03:05:22,369 - __main__ - INFO - ✅ Rollback script created: rollback_phase_2_1_1_20250628_030522.sh
+2025-06-28 03:05:22,371 - __main__ - INFO - ✅ Migration completed successfully!

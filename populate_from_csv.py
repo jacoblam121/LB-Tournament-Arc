@@ -22,6 +22,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'bot'))
 from bot.config import Config
 from bot.database.database import Database
 from bot.database.models import Cluster, Event
+from bot.utils.event_name_parser import extract_base_event_name
 
 
 def setup_logging() -> logging.Logger:
@@ -259,9 +260,13 @@ async def populate_clusters_and_events(csv_path: str = "LB Culling Games List.cs
                         if normalized_scoring_type == 'Leaderboard':
                             score_direction = infer_score_direction(event_name, notes)
                         
+                        # Extract base event name for UI aggregation
+                        base_name_for_aggregation = extract_base_event_name(final_event_name)
+                        
                         # Create event
                         event = Event(
                             name=final_event_name,
+                            base_event_name=base_name_for_aggregation,
                             cluster_id=current_cluster.id,
                             scoring_type=normalized_scoring_type,
                             score_direction=score_direction,

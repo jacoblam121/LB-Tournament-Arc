@@ -1,0 +1,10 @@
+phase_1.1_model_updates Migration Report
+==================================================
+Timestamp: 2025-06-27 02:29:56.277966
+Backup: tournament_backup_phase_1.1_model_updates_20250627_022956.db
+Rollback Script: rollback_phase_1.1_model_updates_20250627_022956.sh
+
+Verification Results:
+  player_event_stats_columns: {'final_score': True, 'shard_bonus': True, 'shop_bonus': True}
+  challenge_participants_table: True
+  challenge_participants_count: 0
