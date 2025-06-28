@@ -537,7 +537,7 @@ class ChallengeCog(commands.Cog):
     ) -> discord.Embed:
         """Create embed for successful team challenge creation"""
         embed = discord.Embed(
-            title="⚔️ Team Challenge Created!",
+            title="Team Challenge Created!",
             description="A new TEAM challenge has been created.",
             color=discord.Color.blue(),
             timestamp=datetime.utcnow()
@@ -557,6 +557,9 @@ class ChallengeCog(commands.Cog):
             inline=True
         )
         
+        # Empty field to ensure teams appear on same line
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
+        
         # Team assignments
         teams = {}
         for member in participants:
@@ -565,9 +568,13 @@ class ChallengeCog(commands.Cog):
                 teams[team_id] = []
             teams[team_id].append(f"<@{member.id}>")
         
-        # Add team fields
+        # Add team fields with letter mapping (both on same line)
+        team_letter_map = {"Team_0": "A", "Team_1": "B", "Team_2": "C", "Team_3": "D"}
         for team_id, members in sorted(teams.items()):
-            team_name = team_id.replace("_", " ").title()
+            if team_id in team_letter_map:
+                team_name = f"Team {team_letter_map[team_id]}"
+            else:
+                team_name = team_id.replace("_", " ").title()
             embed.add_field(
                 name=team_name,
                 value="\n".join(members),

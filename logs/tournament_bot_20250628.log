@@ -268,3 +268,148 @@
 2025-06-28 04:10:44 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 12 for event 55 with 4 participants
 2025-06-28 04:10:44 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 12 for event 55 with 4 participants
 2025-06-28 04:10:44 - bot.cogs.challenge - INFO - Team challenge 12 created by 492208498533203970 for event Rat.mash (Team)
+2025-06-28 10:45:05 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 10:45:05 - bot.database.database - INFO - Initializing database...
+2025-06-28 10:45:05 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 10:45:05 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 10:45:05 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 10:45:06 - __main__ - INFO - Successfully synced 7 command(s) to guild 743306931522764860
+2025-06-28 10:45:06 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 10:45:06 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 10:45:06 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 10:45:06 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 10:45:06 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 10:45:06 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 10:45:06 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 10:45:07 - __main__ - INFO - Successfully synced 7 command(s) to guild 685704304983932949
+2025-06-28 10:45:07 - __main__ - INFO - Multi-guild sync complete: 14 total command instances deployed
+2025-06-28 10:45:07 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 10:45:09 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 10:45:09 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 10:45:09 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Found existing Player 4 for Discord user 352478916826365953
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Updated activity for Player 4
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Found existing Player 11 for Discord user 358116499140902912
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Updated activity for Player 11
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 10:46:01 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 10:46:01 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 13 for event 9 with 4 participants
+2025-06-28 10:46:01 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 13 for event 9 with 4 participants
+2025-06-28 10:46:01 - bot.cogs.challenge - INFO - Team challenge 13 created by 492208498533203970 for event Operations Siege (Team)
+2025-06-28 10:54:53 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 10:54:53 - bot.database.database - INFO - Database connection closed
+2025-06-28 10:55:02 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 10:55:02 - bot.database.database - INFO - Initializing database...
+2025-06-28 10:55:02 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 10:55:03 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 10:55:03 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 10:55:03 - __main__ - INFO - Successfully synced 7 command(s) to guild 743306931522764860
+2025-06-28 10:55:03 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 10:55:03 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 10:55:03 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 10:55:03 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 10:55:03 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 10:55:03 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 10:55:03 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 10:55:03 - __main__ - INFO - Successfully synced 7 command(s) to guild 685704304983932949
+2025-06-28 10:55:03 - __main__ - INFO - Multi-guild sync complete: 14 total command instances deployed
+2025-06-28 10:55:03 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 10:55:06 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 10:55:06 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 10:55:06 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 12:37:38 - bot.cogs.challenge - ERROR - Event autocomplete error: invalid literal for int() with base 10: 'Clash Royale'
+2025-06-28 12:40:07 - bot.cogs.challenge - ERROR - Event autocomplete error: invalid literal for int() with base 10: 'Clash Royale'
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 6 for Discord user 692610511325364287
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 6
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 7 for Discord user 359069937492295680
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 7
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 10 for Discord user 839537050340032554
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 10
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 8 for Discord user 232299873381122050
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 8
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 12:40:35 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 12:40:35 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 14 for event 25 with 6 participants
+2025-06-28 12:40:35 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 14 for event 25 with 6 participants
+2025-06-28 12:40:35 - bot.cogs.challenge - INFO - Team challenge 14 created by 492208498533203970 for event Bonk (Team)
+2025-06-28 12:41:03 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 12:41:03 - bot.database.database - INFO - Database connection closed
+2025-06-28 12:47:05 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 12:47:05 - bot.database.database - INFO - Initializing database...
+2025-06-28 12:47:05 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 12:47:05 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 12:47:05 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 12:47:05 - __main__ - INFO - Successfully synced 7 command(s) to guild 743306931522764860
+2025-06-28 12:47:05 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 12:47:05 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 12:47:05 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 12:47:05 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 12:47:05 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 12:47:05 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 12:47:05 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 12:47:06 - __main__ - INFO - Successfully synced 7 command(s) to guild 685704304983932949
+2025-06-28 12:47:06 - __main__ - INFO - Multi-guild sync complete: 14 total command instances deployed
+2025-06-28 12:47:06 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 12:47:08 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 12:47:08 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 12:47:08 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 7 for Discord user 359069937492295680
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 7
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 6 for Discord user 692610511325364287
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 6
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 10 for Discord user 839537050340032554
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 10
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 8 for Discord user 232299873381122050
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 8
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 12:49:21 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 12:49:21 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 15 for event 9 with 6 participants
+2025-06-28 12:49:21 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 15 for event 9 with 6 participants
+2025-06-28 12:49:21 - bot.cogs.challenge - INFO - Team challenge 15 created by 492208498533203970 for event Operations Siege (Team)
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 7 for Discord user 359069937492295680
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 7
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 6 for Discord user 692610511325364287
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 6
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 8 for Discord user 232299873381122050
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 8
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 10 for Discord user 839537050340032554
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 10
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 12:49:55 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 12:49:55 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 16 for event 28 with 6 participants
+2025-06-28 12:49:55 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 16 for event 28 with 6 participants
+2025-06-28 12:49:56 - bot.cogs.challenge - INFO - Team challenge 16 created by 492208498533203970 for event Diep (Team)

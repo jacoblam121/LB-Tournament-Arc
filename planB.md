@@ -882,7 +882,7 @@ WHERE cp.challenge_id = (SELECT MAX(id) FROM challenges);
 
 ---
 
-#### 2.5 Challenge Acceptance System
+#### 2.3 Challenge Acceptance System
 
 ```python
 class ChallengeAcceptanceView(discord.ui.View):

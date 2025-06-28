@@ -16,7 +16,7 @@ class TeamFormationModal(discord.ui.Modal, title="Team Formation"):
     """
     Modal for organizing players into teams for team-based challenges.
     
-    Supports up to 4 teams with dynamic input fields based on participant count.
+    Always creates exactly 2 teams (Team A and Team B) for all team matches.
     Each team assignment is a text input where players can be assigned.
     """
     
@@ -53,8 +53,8 @@ class TeamFormationModal(discord.ui.Modal, title="Team Formation"):
         if len(participants) > 8:
             raise ValueError("Team matches support maximum 8 participants")
         
-        # Calculate team count (2 teams for 2-4 players, up to 4 teams for more)
-        self.team_count = min(4, max(2, len(participants) // 2))
+        # Team matches always have exactly 2 teams
+        self.team_count = 2
         
         # Create dynamic fields based on team count
         self._create_team_fields()

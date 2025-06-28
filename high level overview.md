@@ -118,6 +118,7 @@ Events are classfied as each game mode from the LB Culling Games List.csv. The m
 
 *   **Team Matches (e.g., 2v2):**
     *   **Concept:** Each team is treated as a single entity with an average rating.
+    *   **Number of Teams:** There will only ever be two teams (3 teams is not necessary for any event)
     *   **Process:**
         1.  Calculate the average Elo of Team A (`R_TeamA = (R_PlayerA1 + R_PlayerA2) / 2`).
         2.  Calculate the average Elo of Team B (`R_TeamB = (R_PlayerB1 + R_PlayerB2) / 2`).
