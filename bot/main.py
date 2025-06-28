@@ -127,8 +127,8 @@ class TournamentBot(commands.Bot):
             error_message = "❌ You don't have permission to use this command."
         elif isinstance(error, app_commands.BotMissingPermissions):
             error_message = "❌ I don't have the required permissions to execute this command."
-        elif isinstance(error, app_commands.MissingRequiredArgument):
-            error_message = f"❌ Missing required argument: `{error.param.name}`"
+        # Note: app_commands.MissingRequiredArgument doesn't exist in discord.py 2.x
+        # This error type is handled by the command framework automatically
         else:
             error_message = "❌ An unexpected error occurred while processing your command. The developers have been notified."
         

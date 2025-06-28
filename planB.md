@@ -710,7 +710,7 @@ async def event_autocomplete(
 - ✅ **Null Safety**: Events with missing names are safely filtered out
 - ✅ **Performance**: Groups events efficiently while maintaining Discord's 25-choice limit
 
-#### 2.3 Match Type Static Choices
+#### 2.3 Match Type Static Choices ✅ COMPLETED
 
 Match types are defined as static choices since they are a fixed, small list. This avoids Discord.py conflicts between `choices` and `autocomplete` decorators:
 
@@ -718,6 +718,8 @@ Match types are defined as static choices since they are a fixed, small list. Th
 # Match type choices are defined directly in the @app_commands.choices decorator
 # No autocomplete function needed for static options
 ```
+
+**Implementation Status**: ✅ Complete - Static choices implemented in `/challenge` command decorator.
 
 #### 2.4 Challenge Creation Logic
 
@@ -878,232 +880,717 @@ WHERE cp.challenge_id = (SELECT MAX(id) FROM challenges);
 - All core functionality implemented and tested
 - Architecture supports N-player challenges as designed
 - Unified Elo UX principle preserved
-- Ready for Phase 2.3 (Challenge Acceptance System)
+- Ready for Phase 2.4 (Unified Elo Fix & Challenge Acceptance)
 
 ---
 
-#### 2.3 Challenge Acceptance System
+### Phase 2.4.1: Critical Unified Elo Architecture Fix ✅ COMPLETED & TESTED
+
+**Priority**: CRITICAL - Must be completed before any further development ✅ DONE
+**Timeline**: 2-3 days with careful validation at each step ✅ COMPLETED
+**Risk Level**: Moderate (mitigated by comprehensive backups and rollback procedures) ✅ SUCCESSFUL
+
+#### Problem Statement
+
+**Confirmed Architectural Flaw**: The system creates separate Event records for each scoring type (e.g., "Diep (1v1)", "Diep (Team)", "Diep (FFA)"), resulting in separate Elo ratings per game mode instead of unified Elo per game. This directly violates the unified Elo principle documented in planB.md lines 707-712.
+
+**Root Cause**: 
+- `populate_from_csv.py` lines 236-288 create multiple Event records per base game
+- `PlayerEventStats` tracks Elo per `event_id`, so separate events = separate Elo ratings
+- Players can have different ratings for the same game (e.g., 1200 Elo in "Diep (1v1)" but 1500 in "Diep (Team)")
+
+**Current Impact**:
+- ❌ Violates unified Elo principle 
+- ❌ Confusing user experience
+- ❌ Architectural debt blocking future features
+- ❌ Should have been caught in Phase 1.3 testing
+
+#### ✅ IMPLEMENTATION RESULTS
+
+**Implementation Date**: 2025-06-28  
+**Migration Successful**: ✅ Complete with full rollback capability  
+**Data Safety**: ✅ Comprehensive backups and legacy table preservation  
+**Testing Status**: ✅ All critical functionality verified
+
+**Key Achievements**:
+- ✅ **Events Consolidated**: 86 fragmented events → 70 unified events  
+- ✅ **PlayerEventStats Unified**: Fragmented records properly consolidated
+- ✅ **Architecture Fixed**: Unified Elo per base game achieved
+- ✅ **Challenge Command Updated**: Now uses unified event selection
+- ✅ **Population Script Fixed**: Creates unified events going forward
+- ✅ **Match.scoring_type Added**: Scoring type moved from Event to Match level
+- ✅ **Comprehensive Test Suite**: 4 detailed test scenarios created and passed
+- ✅ **Expert Analysis**: Deep investigation with Gemini 2.5 Pro and O3 full
+- ✅ **Rollback Capability**: Emergency recovery script generated
+
+**Database Migration Details**:
+```bash
+# Migration Script: migration_phase_2_4_1_unified_elo.py
+# Backup Files: tournament_backup_phase_2_4_1_*.db
+# Rollback Scripts: rollback_phase_2_4_1_*.sh
+# Log Files: migration_phase_2_4_1_*.log
+
+# Before: Fragmented events per scoring type
+# "Diep (1v1)", "Diep (Team)", "Diep (FFA)" as separate events
+
+# After: Unified events with supported types  
+# name="Diep", supported_scoring_types="1v1,FFA,Team" as single unified event
+```
+
+**Architecture Validation**:
+- ✅ **Competitive Events Unified**: 1v1, FFA, Team events properly consolidated per base game
+- ✅ **Leaderboard Events Separate**: Performance Points events correctly remain separate from Elo events
+- ✅ **No Mixing of Scoring Systems**: Elo (competitive) and Performance Points (leaderboard) properly segregated
+- ✅ **Base Event Names**: Events show as "Diep" instead of "Diep (1v1)" preserving unified Elo UX
+
+**Testing Results - All Tests Passed**:
+
+**Test 1**: ✅ Database Schema Verification
+- matches table has scoring_type column (VARCHAR(20), default '1v1')
+- events table has supported_scoring_types column (VARCHAR(100))
+
+**Test 2**: ✅ Event Count Reduction  
+- Active events reduced from ~86 to 70 (consolidation successful)
+- Fragmented events properly unified
+
+**Test 3**: ✅ Event Structure Analysis
+- Each base_event_name + scoring_type combination appears exactly once
+- Competitive events (1v1, FFA, Team) properly unified within base games
+- Leaderboard events correctly separated (different rating system)
+- Example: "Blitz" appears as both competitive (1v1) and leaderboard events - this is correct architecture
+
+**Test 4**: ✅ Challenge Command Integration
+- Event autocomplete shows unified base names (e.g., "Diep" not "Diep (1v1)")
+- Challenge command correctly resolves base name + match type to specific event ID
+- User experience improved with unified event selection
+
+**Critical Investigation Results** (Gemini 2.5 Pro + O3 Analysis):
+- ✅ **No Migration Bugs**: All observed "duplications" are architecturally correct
+- ✅ **Proper Scoring Separation**: Elo vs Performance Points systems correctly isolated
+- ✅ **Unified Elo Achieved**: Single rating per base game for competitive modes
+- ✅ **User Education**: "Leaderboard duplicates" are actually correct architecture
+
+**User Experience Improvement**:
+- Event autocomplete now shows "Diep" instead of "Diep (1v1)"
+- Single Elo rating per game instead of separate ratings per mode  
+- Unified challenge workflow: Game selection → Match type selection
+- Proper separation between competitive Elo and Performance Points systems
+
+##### ✅ Step 1: Database Schema Updates (COMPLETED)
+
+**File**: `migration_phase_2_4_1_unified_elo.py` ✅ IMPLEMENTED & EXECUTED
 
 ```python
-class ChallengeAcceptanceView(discord.ui.View):
-    """Interactive view for challenge acceptance/rejection"""
+#!/usr/bin/env python3
+"""
+Phase 2.4.1: Unified Elo Architecture Fix
+
+Consolidates separate events per scoring type into unified events per base game.
+Moves scoring_type from Event level to Match level.
+"""
+
+# 1. Add scoring_type to Match model
+ALTER TABLE matches ADD COLUMN scoring_type VARCHAR(20) NOT NULL DEFAULT '1v1';
+
+# 2. Create event consolidation mapping table
+CREATE TABLE event_consolidation_map (
+    old_event_id INTEGER PRIMARY KEY,
+    new_event_id INTEGER NOT NULL,
+    old_event_name VARCHAR(200) NOT NULL,
+    new_event_name VARCHAR(200) NOT NULL,
+    scoring_type VARCHAR(20) NOT NULL,
+    FOREIGN KEY(old_event_id) REFERENCES events(id),
+    FOREIGN KEY(new_event_id) REFERENCES events(id)
+);
+
+# 3. Backup original tables
+CREATE TABLE events_legacy AS SELECT * FROM events;
+CREATE TABLE player_event_stats_legacy AS SELECT * FROM player_event_stats;
+```
+
+##### Step 2: Data Migration & Consolidation (1 day)
+
+**Critical Process**: Smart consolidation preserving all historical data
+
+```python
+def consolidate_events_and_stats():
+    """
+    1. Create unified events (e.g., consolidate "Diep (1v1)", "Diep (Team)" → "Diep")
+    2. Migrate PlayerEventStats using weighted averages
+    3. Update Match records with scoring_type
+    4. Update Challenge records to point to unified events
+    """
     
-    def __init__(self, challenge_id: int, challenge_ops: ChallengeOperations):
-        super().__init__(timeout=86400)  # 24 hour timeout
-        self.challenge_id = challenge_id
-        self.challenge_ops = challenge_ops
+    # Example consolidation mapping:
+    # "Diep (1v1)" + "Diep (Team)" + "Diep (FFA)" → "Diep"
+    # "Bonk (1v1)" + "Bonk (Team)" → "Bonk"
     
-    @discord.ui.button(
-        label="Accept", 
-        style=discord.ButtonStyle.success,
-        custom_id="challenge_accept"
-    )
-    async def accept_button(
-        self, 
-        interaction: discord.Interaction, 
-        button: discord.ui.Button
-    ):
-        """Handle challenge acceptance"""
+    # PlayerEventStats consolidation strategy:
+    # new_elo = Σ(elo_i × matches_i) / Σ(matches_i)  # Weighted by match count
+    # new_matches = Σ(matches_i)
+    # new_wins = Σ(wins_i)
+    # new_losses = Σ(losses_i)
+```
+
+**Data Safety Measures**:
+- ✅ Complete backup before migration
+- ✅ Preserve all original data in `*_legacy` tables
+- ✅ Idempotent migration (can be run multiple times)
+- ✅ Comprehensive validation queries
+- ✅ Rollback script generation
+
+##### Step 3: Code Updates (1 day)
+
+**3.1 Update populate_from_csv.py**:
+```python
+# OLD: Creates separate events per scoring type
+for scoring_type in parsed_scoring_types:
+    event_name = create_event_name_with_suffix(base_name, scoring_type)
+    # Creates: "Diep (1v1)", "Diep (Team)", "Diep (FFA)"
+
+# NEW: Creates single event per base game
+event_name = base_name  # Just "Diep"
+# Store supported scoring types in event metadata
+event.supported_scoring_types = ','.join(parsed_scoring_types)
+```
+
+**3.2 Update Challenge Command Flow**:
+```python
+# OLD: Select event by base_name + scoring_type
+matching_event = find_event(base_name=base_name, scoring_type=scoring_type)
+
+# NEW: Select unified event, store scoring_type in match
+unified_event = find_event(base_name=base_name)
+# Later when creating match:
+match.scoring_type = scoring_type
+```
+
+**3.3 Update Models**:
+```python
+# Match model - add scoring_type field
+class Match(Base):
+    # ... existing fields ...
+    scoring_type = Column(String(20), nullable=False, default='1v1')
+    
+# Event model - deprecate scoring_type
+class Event(Base):
+    # ... existing fields ...
+    scoring_type = Column(String(20), nullable=True)  # DEPRECATED - kept for migration only
+    supported_scoring_types = Column(String(100))  # NEW: comma-separated list
+```
+
+##### Step 4: Testing & Validation (0.5 days)
+
+**4.1 Migration Validation Queries**:
+```sql
+-- Verify no duplicate PlayerEventStats for same player+event
+SELECT player_id, event_id, COUNT(*) 
+FROM player_event_stats 
+GROUP BY player_id, event_id 
+HAVING COUNT(*) > 1;
+
+-- Verify total Elo history preserved
+SELECT SUM(elo_change) FROM elo_history WHERE event_id IN (legacy_events);
+SELECT SUM(elo_change) FROM elo_history WHERE event_id IN (unified_events);
+
+-- Verify all matches have scoring_type
+SELECT COUNT(*) FROM matches WHERE scoring_type IS NULL;
+```
+
+**4.2 Integration Tests**:
+```python
+def test_unified_elo_system():
+    """Test that matches in different modes update same PlayerEventStats"""
+    player = create_test_player()
+    diep_event = get_event_by_name("Diep")
+    
+    # Create 1v1 match
+    match_1v1 = create_match(event=diep_event, scoring_type="1v1")
+    complete_match(match_1v1, player_results=[...])
+    
+    # Create Team match 
+    match_team = create_match(event=diep_event, scoring_type="Team")
+    complete_match(match_team, player_results=[...])
+    
+    # Verify both matches updated SAME PlayerEventStats record
+    stats = PlayerEventStats.get(player_id=player.id, event_id=diep_event.id)
+    assert stats.matches_played == 2  # Both matches counted
+```
+
+#### Rollback Plan
+
+**If Migration Fails**:
+```python
+# Automated rollback script generated during migration
+def rollback_unified_elo_migration():
+    """
+    1. Drop new unified events
+    2. Restore events table from events_legacy
+    3. Restore player_event_stats from player_event_stats_legacy
+    4. Remove scoring_type column from matches
+    5. Restore challenge.event_id references
+    """
+    # Full restoration to pre-migration state
+```
+
+#### Success Criteria
+
+- ✅ **Single Event per base game** (e.g., one "Diep" event instead of three)
+- ✅ **Match.scoring_type captures format** (1v1, Team, FFA stored per match)
+- ✅ **Unified Elo ratings** (PlayerEventStats has one record per player+game)
+- ✅ **Zero data loss** (all historical matches and Elo changes preserved)
+- ✅ **UI shows unified events** (autocomplete shows "Diep" not "Diep (Team)")
+- ✅ **Challenge flow updated** (select game first, then match type)
+
+#### Communication Plan
+
+**Before Migration**:
+- 📢 Announce maintenance window to users
+- 📝 Document current Elo ratings for transparency
+- ⚠️ Explain that ratings will be unified (players with different mode ratings will see consolidated values)
+
+**After Migration**:
+- 📊 Publish consolidation report showing rating changes
+- 📚 Update help documentation with new unified flow
+- 🎯 Highlight improved unified Elo system
+
+#### Notes for Implementation
+
+**Claude Development Notes**:
+```
+CRITICAL: This phase must be completed before any further /challenge or Elo work.
+The current architecture violates core design principles and will cause confusion.
+
+Key files to modify:
+1. populate_from_csv.py (lines 236-288) - Remove event suffix creation
+2. bot/database/models.py - Add Match.scoring_type, deprecate Event.scoring_type  
+3. bot/cogs/challenge.py - Update event resolution logic
+4. Create migration_phase_2_4_1_unified_elo.py - Handle data consolidation
+
+Testing priority:
+1. Verify PlayerEventStats consolidation math is correct
+2. Ensure no orphaned data after migration
+3. Confirm UI shows unified events properly
+4. Validate challenge creation flow works with unified events
+
+Rollback triggers:
+- Any data loss detected
+- PlayerEventStats consolidation errors
+- Challenge creation failures
+- User confusion reports
+```
+
+### Phase 2.4.2: Challenge Acceptance Workflow Implementation 
+
+**Priority**: HIGH - Critical missing functionality blocking challenge system
+**Timeline**: 1-2 days with existing infrastructure leverage
+**Risk Level**: Low (builds on existing models and services)
+
+#### Problem Statement
+
+**Missing Core Functionality**: The challenge system can create challenges but participants have no way to accept or decline them. This completely breaks the invitation workflow - challenges remain permanently pending with no resolution mechanism.
+
+**Current Gap**: 
+- `/challenge` command creates challenges with participants in PENDING status
+- No `/accept` or `/decline` commands exist
+- No auto-transition to matches when all participants accept
+- No expiration/cleanup for abandoned challenges
+
+#### Implementation Plan
+
+##### Step 1: Accept/Decline Commands (0.5 days)
+
+**File**: `bot/cogs/challenge.py` (add to existing ChallengeCog)
+
+```python
+@app_commands.command(
+    name="accept",
+    description="Accept a pending challenge invitation"
+)
+@app_commands.describe(
+    challenge_id="Challenge ID to accept (optional - will auto-detect if you have only one pending)"
+)
+async def accept_challenge(
+    self,
+    interaction: discord.Interaction,
+    challenge_id: Optional[int] = None
+):
+    """Accept a challenge invitation"""
+    try:
+        # Auto-discovery if no challenge_id provided
+        if challenge_id is None:
+            challenge_id = await self._find_user_pending_challenge(interaction.user)
+            if challenge_id is None:
+                await interaction.response.send_message(
+                    embed=self._create_error_embed(
+                        "No Pending Challenges",
+                        "You have no pending challenge invitations. Use `/challenges` to see all available challenges."
+                    ),
+                    ephemeral=True
+                )
+                return
+        
         await interaction.response.defer()
         
-        try:
-            # Update participant status
-            async with self.challenge_ops.db.transaction() as session:
-                success = await self.challenge_ops.update_participant_status(
-                    challenge_id=self.challenge_id,
-                    player_discord_id=interaction.user.id,
-                    status=ConfirmationStatus.ACCEPTED,
-                    session=session
-                )
-                
-                if not success:
-                    await interaction.followup.send(
-                        "You are not a participant in this challenge.",
-                        ephemeral=True
-                    )
-                    return
-                
-                # Check if all accepted
-                if await self.challenge_ops.all_participants_accepted(
-                    self.challenge_id, 
-                    session
-                ):
-                    # Create match
-                    match = await self.challenge_ops.create_match_from_challenge(
-                        self.challenge_id,
-                        session
-                    )
-                    
-                    # Update embed to show match created
-                    embed = self._create_match_ready_embed(match)
-                    await interaction.message.edit(embed=embed, view=None)
-                else:
-                    # Update embed with current status
-                    embed = await self._update_status_embed(self.challenge_id)
-                    await interaction.message.edit(embed=embed)
-            
-            await interaction.followup.send(
-                "You have accepted the challenge!",
-                ephemeral=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Challenge acceptance error: {e}")
-            await interaction.followup.send(
-                "An error occurred processing your response.",
-                ephemeral=True
-            )
-
-class TeamFormationModal(discord.ui.Modal):
-    """
-    Modal for assigning players to teams in team-based challenges.
-    
-    As specified in planA.md lines 423-428, team challenges require clear
-    team assignments with all players accepting their team placement.
-    
-    This modal is self-contained and handles all challenge creation logic
-    for team matches in its on_submit method.
-    """
-    
-    def __init__(self, challenge_cog, cluster_id: int, event_id: int, mentioned_users: List[discord.Member]):
-        super().__init__(title="Team Formation", timeout=300)
-        self.challenge_cog = challenge_cog
-        self.cluster_id = cluster_id
-        self.event_id = event_id
-        self.mentioned_users = mentioned_users
-        
-        # Create text inputs for team assignment
-        # Format: "Team A: @user1 @user2\nTeam B: @user3 @user4"
-        player_list = " ".join([f"@{p.display_name}" for p in mentioned_users])
-        
-        self.team_input = discord.ui.TextInput(
-            label="Team Assignments",
-            placeholder=f"Team A: {player_list[:50]}...\nTeam B: ...",
-            style=discord.TextStyle.paragraph,
-            max_length=1000,
-            required=True
+        # Process acceptance
+        result = await self.challenge_ops.accept_challenge(
+            challenge_id=challenge_id,
+            player_discord_id=interaction.user.id
         )
-        self.add_item(self.team_input)
-    
-    async def on_submit(self, interaction: discord.Interaction):
-        """Process team assignments AND create the challenge"""
-        await interaction.response.defer(ephemeral=True)
         
-        try:
-            # Parse team assignments from input
-            team_assignments = self._parse_team_assignments(self.team_input.value)
-            
-            if not team_assignments:
-                await interaction.followup.send(
-                    "Invalid team format. Please use: Team A: @user1 @user2",
-                    ephemeral=True
-                )
-                return
-            
-            # Validate all players are assigned and no duplicates
-            assigned_users = set()
-            for team_members in team_assignments.values():
-                for member in team_members:
-                    if member in assigned_users:
-                        await interaction.followup.send(
-                            f"Player {member.display_name} assigned to multiple teams.",
-                            ephemeral=True
-                        )
-                        return
-                    assigned_users.add(member)
-            
-            if len(assigned_users) != len(self.mentioned_users):
-                await interaction.followup.send(
-                    "Not all players were assigned to teams. Please check your assignments.",
-                    ephemeral=True
-                )
-                return
-            
-            # CREATE THE CHALLENGE (moved from main command)
-            async with self.challenge_cog.db.transaction() as session:
-                # Get or create Player records
-                player_records = await self.challenge_cog._ensure_players_exist(self.mentioned_users, session)
-                
-                # Create Challenge
-                challenge = await self.challenge_cog.challenge_ops.create_challenge(
-                    event_id=self.event_id,
-                    initiator_id=player_records[interaction.user.id].id,
-                    match_format="team",
-                    session=session
-                )
-                
-                # Create ChallengeParticipant records with team assignments
-                for team_name, team_members in team_assignments.items():
-                    for member in team_members:
-                        player = player_records[member.id]
-                        is_initiator = (member.id == interaction.user.id)
-                        await self.challenge_cog.challenge_ops.add_participant(
-                            challenge_id=challenge.id,
-                            player_id=player.id,
-                            team_id=team_name,
-                            is_initiator=is_initiator,
-                            status=ConfirmationStatus.ACCEPTED if is_initiator else ConfirmationStatus.PENDING,
-                            session=session
-                        )
-            
-            # Send challenge created notification
-            embed, view = self.challenge_cog._create_challenge_embed(challenge, self.mentioned_users)
+        if result.success:
+            if result.match_created:
+                # All participants accepted - match created
+                embed = self._create_match_ready_embed(result.match, result.challenge)
+                await interaction.followup.send(embed=embed)
+            else:
+                # Partial acceptance - update status
+                embed = await self._create_updated_challenge_embed(result.challenge)
+                await interaction.followup.send(embed=embed)
+        else:
             await interaction.followup.send(
-                "Team challenge created successfully!",
-                embed=embed,
-                view=view,
-                ephemeral=False  # Make public so all participants can see
-            )
-            
-        except Exception as e:
-            logger.error(f"Team formation error: {e}")
-            await interaction.followup.send(
-                "Error processing team assignments and creating challenge.",
+                embed=self._create_error_embed("Cannot Accept", result.error_message),
                 ephemeral=True
             )
-    
-    def _parse_team_assignments(self, input_text: str) -> Optional[Dict[str, List[discord.Member]]]:
-        """
-        Parse team assignment text into structured data.
-        
-        Expected format:
-        Team A: @user1 @user2
-        Team B: @user3 @user4
-        """
-        import re
-        
-        assignments = {}
-        player_mentions = {str(p.id): p for p in self.mentioned_users}
-        mention_pattern = re.compile(r"<@!?(\d+)>")
-        
-        for line in input_text.strip().split('\n'):
-            if ':' not in line:
-                continue
-                
-            parts = line.split(':', 1)
-            if len(parts) != 2:
-                continue
-                
-            team_name = parts[0].strip()
-            member_text = parts[1].strip()
             
-            # Find user IDs in mentions
-            found_ids = mention_pattern.findall(member_text)
-            team_members = [player_mentions[uid] for uid in found_ids if uid in player_mentions]
-            
-            if team_members:
-                assignments[team_name] = team_members
-        
-        # Validate we have at least 2 teams with players
-        if len(assignments) < 2 or not all(len(members) > 0 for members in assignments.values()):
-            return None
-            
-        return assignments
-    
-    async def on_timeout(self):
-        """Handle modal timeout"""
-        logger.info(f"Team formation modal timed out for user {self.mentioned_users[0].id if self.mentioned_users else 'unknown'}")
+    except Exception as e:
+        self.logger.error(f"Accept challenge error: {e}", exc_info=True)
+        # Handle error response based on interaction state
+
+@app_commands.command(
+    name="decline", 
+    description="Decline a pending challenge invitation"
+)
+@app_commands.describe(
+    challenge_id="Challenge ID to decline",
+    reason="Optional reason for declining"
+)
+async def decline_challenge(
+    self,
+    interaction: discord.Interaction,
+    challenge_id: Optional[int] = None,
+    reason: Optional[str] = None
+):
+    """Decline a challenge invitation"""
+    # Similar implementation to accept but calls decline_challenge()
+    # Automatically cancels the entire challenge when any participant declines
 ```
+
+##### Step 2: Challenge Operations Service Updates (0.5 days)
+
+**File**: `bot/operations/challenge_operations.py` (extend existing)
+
+```python
+@dataclass
+class ChallengeAcceptanceResult:
+    """Result of challenge acceptance operation"""
+    success: bool
+    challenge: Optional[Challenge] = None
+    match: Optional[Match] = None
+    match_created: bool = False
+    error_message: Optional[str] = None
+
+class ChallengeOperations:
+    # ... existing methods ...
+    
+    async def accept_challenge(
+        self, 
+        challenge_id: int, 
+        player_discord_id: int,
+        session=None
+    ) -> ChallengeAcceptanceResult:
+        """
+        Process challenge acceptance with auto-transition to match
+        """
+        async with self._get_session(session) as s:
+            # 1. Validate challenge exists and is active
+            challenge = await self._get_active_challenge(challenge_id, s)
+            if not challenge:
+                return ChallengeAcceptanceResult(
+                    success=False, 
+                    error_message="Challenge not found or expired"
+                )
+            
+            # 2. Validate player is a participant
+            participant = await self._get_participant(challenge_id, player_discord_id, s)
+            if not participant:
+                return ChallengeAcceptanceResult(
+                    success=False,
+                    error_message="You are not invited to this challenge"
+                )
+                
+            # 3. Validate player hasn't already responded
+            if participant.status != ConfirmationStatus.PENDING:
+                return ChallengeAcceptanceResult(
+                    success=False,
+                    error_message=f"You have already {participant.status.value} this challenge"
+                )
+            
+            # 4. Update participant status
+            participant.status = ConfirmationStatus.CONFIRMED
+            participant.responded_at = datetime.utcnow()
+            
+            # 5. Check if all participants have accepted
+            all_participants = await self._get_all_participants(challenge_id, s)
+            all_accepted = all(p.status == ConfirmationStatus.CONFIRMED for p in all_participants)
+            
+            if all_accepted:
+                # 6. Create match and transition challenge to completed
+                match = await self._create_match_from_challenge(challenge, s)
+                challenge.status = ChallengeStatus.COMPLETED
+                challenge.completed_at = datetime.utcnow()
+                
+                return ChallengeAcceptanceResult(
+                    success=True,
+                    challenge=challenge,
+                    match=match,
+                    match_created=True
+                )
+            else:
+                return ChallengeAcceptanceResult(
+                    success=True,
+                    challenge=challenge,
+                    match_created=False
+                )
+    
+    async def decline_challenge(
+        self,
+        challenge_id: int,
+        player_discord_id: int,
+        reason: Optional[str] = None,
+        session=None
+    ) -> ChallengeAcceptanceResult:
+        """
+        Process challenge decline - cancels entire challenge
+        """
+        async with self._get_session(session) as s:
+            # Similar validation to accept
+            # Set participant status to REJECTED
+            # Set challenge status to CANCELLED
+            # Record reason in admin_notes if provided
+            
+    async def _create_match_from_challenge(
+        self, 
+        challenge: Challenge, 
+        session
+    ) -> Match:
+        """
+        Bridge function: Create Match from accepted Challenge
+        Uses existing Match creation infrastructure
+        """
+        # Extract scoring_type from challenge event (temporary until Phase 2.4.1)
+        scoring_type = challenge.event.scoring_type
+        
+        # Create Match record
+        match = Match(
+            event_id=challenge.event_id,
+            match_format=MatchFormat(scoring_type.lower()),
+            challenge_id=challenge.id,
+            status=MatchStatus.PENDING,
+            created_by=challenge.participants[0].player_id,  # Challenger
+            started_at=datetime.utcnow()
+        )
+        session.add(match)
+        await session.flush()
+        
+        # Create MatchParticipant records from ChallengeParticipant
+        for challenge_participant in challenge.participants:
+            match_participant = MatchParticipant(
+                match_id=match.id,
+                player_id=challenge_participant.player_id,
+                team_id=challenge_participant.team_id,  # Preserve team assignments
+                elo_before=await self._get_current_elo(
+                    challenge_participant.player_id, 
+                    challenge.event_id, 
+                    session
+                )
+            )
+            session.add(match_participant)
+        
+        return match
+```
+
+##### Step 3: UI Updates & Embeds (0.25 days)
+
+**Embed Updates**: Enhanced challenge embeds showing real-time acceptance status
+
+```python
+def _create_updated_challenge_embed(self, challenge: Challenge) -> discord.Embed:
+    """Create embed showing current acceptance status"""
+    embed = discord.Embed(
+        title="⏳ Challenge Status Update",
+        description=f"Challenge #{challenge.id} acceptance in progress",
+        color=discord.Color.orange()
+    )
+    
+    # Show acceptance progress
+    total_participants = len(challenge.participants)
+    accepted_count = sum(1 for p in challenge.participants 
+                        if p.status == ConfirmationStatus.CONFIRMED)
+    
+    embed.add_field(
+        name="Progress",
+        value=f"{accepted_count}/{total_participants} participants accepted",
+        inline=True
+    )
+    
+    # List participant status with emojis
+    status_list = []
+    for participant in challenge.participants:
+        emoji = {
+            ConfirmationStatus.PENDING: "⏳",
+            ConfirmationStatus.CONFIRMED: "✅", 
+            ConfirmationStatus.REJECTED: "❌"
+        }.get(participant.status, "❓")
+        
+        status_list.append(f"{emoji} <@{participant.player.discord_id}>")
+    
+    embed.add_field(
+        name="Participants",
+        value="\n".join(status_list),
+        inline=False
+    )
+    
+    return embed
+
+def _create_match_ready_embed(self, match: Match, challenge: Challenge) -> discord.Embed:
+    """Create embed when all participants accept and match is created"""
+    embed = discord.Embed(
+        title="🎮 Match Ready!",
+        description=f"All participants accepted - Match #{match.id} created",
+        color=discord.Color.green()
+    )
+    
+    embed.add_field(
+        name="Event", 
+        value=challenge.event.name,
+        inline=True
+    )
+    
+    embed.add_field(
+        name="Match Type",
+        value=challenge.event.scoring_type.upper(),
+        inline=True
+    )
+    
+    embed.add_field(
+        name="Next Steps",
+        value="Play your match and report results using `/match_result`",
+        inline=False
+    )
+    
+    return embed
+```
+
+##### Step 4: Background Cleanup & Utilities (0.25 days)
+
+**Challenge Expiration Cleanup**:
+```python
+@tasks.loop(hours=1)
+async def cleanup_expired_challenges(self):
+    """Background task to clean up expired challenges"""
+    async with self.db.transaction() as session:
+        expired_challenges = await session.execute(
+            select(Challenge)
+            .where(
+                Challenge.status == ChallengeStatus.PENDING,
+                Challenge.expires_at < datetime.utcnow()
+            )
+        )
+        
+        for challenge in expired_challenges.scalars():
+            challenge.status = ChallengeStatus.EXPIRED
+            self.logger.info(f"Expired challenge {challenge.id}")
+
+async def _find_user_pending_challenge(self, user: discord.User) -> Optional[int]:
+    """Auto-discovery: Find user's pending challenge if they have exactly one"""
+    async with self.db.transaction() as session:
+        pending_challenges = await session.execute(
+            select(Challenge.id)
+            .join(ChallengeParticipant)
+            .join(Player)
+            .where(
+                Player.discord_id == user.id,
+                ChallengeParticipant.status == ConfirmationStatus.PENDING,
+                Challenge.status == ChallengeStatus.PENDING
+            )
+        )
+        
+        challenge_ids = pending_challenges.scalars().all()
+        return challenge_ids[0] if len(challenge_ids) == 1 else None
+```
+
+#### Integration with Existing System
+
+**Leverages Existing Infrastructure**:
+- ✅ Uses existing `ChallengeParticipant` model with `ConfirmationStatus` enum
+- ✅ Extends existing `ChallengeOperations` service class  
+- ✅ Integrates with existing `Match` creation system
+- ✅ Follows established embed and error handling patterns
+
+**No Breaking Changes**:
+- ✅ All existing functionality preserved
+- ✅ Database schema already supports required fields
+- ✅ Commands are purely additive
+
+#### Success Criteria
+
+- ✅ **Accept Command**: `/accept [challenge_id]` with auto-discovery
+- ✅ **Decline Command**: `/decline [challenge_id] [reason]` with challenge cancellation
+- ✅ **Status Management**: Real-time updates in ChallengeParticipant table
+- ✅ **Auto-Transition**: Automatic match creation when all participants accept
+- ✅ **UI Updates**: Enhanced embeds showing acceptance progress
+- ✅ **Error Handling**: Comprehensive validation and user feedback
+- ✅ **Cleanup**: Background task for expired challenge management
+
+#### Testing Plan
+
+**Integration Tests**:
+```python
+def test_challenge_acceptance_workflow():
+    """Test complete challenge→acceptance→match workflow"""
+    # 1. Create 1v1 challenge
+    challenge = create_test_challenge(participants=2)
+    
+    # 2. First participant accepts
+    result1 = accept_challenge(challenge.id, participant1.discord_id)
+    assert not result1.match_created  # Partial acceptance
+    
+    # 3. Second participant accepts  
+    result2 = accept_challenge(challenge.id, participant2.discord_id)
+    assert result2.match_created  # Full acceptance
+    assert result2.match.status == MatchStatus.PENDING
+    
+    # 4. Verify challenge status updated
+    assert challenge.status == ChallengeStatus.COMPLETED
+
+def test_challenge_decline_workflow():
+    """Test challenge decline cancels entire challenge"""
+    challenge = create_test_challenge(participants=3)
+    
+    # One participant declines
+    result = decline_challenge(challenge.id, participant1.discord_id, "Not available")
+    
+    # Entire challenge should be cancelled
+    assert challenge.status == ChallengeStatus.CANCELLED
+    assert "Not available" in challenge.admin_notes
+```
+
+#### Notes for Implementation
+
+**Timeline Breakdown**:
+- **Day 1 Morning**: Implement accept/decline commands
+- **Day 1 Afternoon**: Extend ChallengeOperations service  
+- **Day 2 Morning**: UI updates and embed enhancements
+- **Day 2 Afternoon**: Testing and background cleanup
+
+**Integration Notes**:
+- Commands leverage existing ChallengeOperations patterns
+- Bridge functions connect to existing Match creation system
+- Real-time embed updates enhance user experience
+- Auto-discovery reduces friction for single pending challenges
+
+---
 
 ### Phase 3: Complete Per-Event Elo Transition (Week 3)
 

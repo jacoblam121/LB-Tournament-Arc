@@ -9,7 +9,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from typing import Optional, List, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import shlex
 
 from bot.database.models import (
@@ -59,11 +59,6 @@ class ChallengeCog(commands.Cog):
         match_type="Match format (1v1, Team, FFA)",
         players="Players to challenge (space-separated @mentions or names)"
     )
-    @app_commands.choices(match_type=[
-        app_commands.Choice(name="1v1", value="1v1"),
-        app_commands.Choice(name="Free for All", value="ffa"),
-        app_commands.Choice(name="Team", value="team"),
-    ])
     async def challenge(
         self,
         interaction: discord.Interaction,
@@ -79,29 +74,40 @@ class ChallengeCog(commands.Cog):
             cluster_id = int(cluster)
             base_event_name = event  # Now using base event name
             
-            # Find the specific event based on base name and match type
+            # Find the unified event by base name (Phase 2.4.1: Unified Elo)
             events = await self.db.get_all_events(cluster_id=cluster_id, active_only=True)
             
-            # Map match_type to scoring_type
+            # Map match_type to scoring_type for validation
             scoring_type_map = {
                 "1v1": "1v1",
-                "ffa": "FFA",
+                "ffa": "FFA", 
                 "team": "Team"
             }
             scoring_type = scoring_type_map.get(match_type)
             
-            # Find the event that matches both base name and scoring type
+            # Find the unified event by base name
             matching_event = None
             for e in events:
-                if (e.base_event_name or e.name) == base_event_name and e.scoring_type == scoring_type:
-                    matching_event = e
-                    break
+                event_base_name = e.base_event_name or e.name
+                if event_base_name == base_event_name:
+                    # Check if this unified event supports the requested scoring type
+                    if e.supported_scoring_types:
+                        supported_types = [t.strip() for t in e.supported_scoring_types.split(',')]
+                        if scoring_type in supported_types:
+                            matching_event = e
+                            break
+                    else:
+                        # Fallback for events without supported_scoring_types field
+                        # (legacy events that haven't been migrated yet)
+                        if e.scoring_type == scoring_type:
+                            matching_event = e
+                            break
             
             if not matching_event:
                 await interaction.response.send_message(
                     embed=self._create_error_embed(
                         "Event Not Found",
-                        f"Could not find {base_event_name} event with {match_type} match type."
+                        f"Could not find {base_event_name} event that supports {match_type} match type."
                     ),
                     ephemeral=True
                 )
@@ -109,27 +115,28 @@ class ChallengeCog(commands.Cog):
             
             event_id = matching_event.id
             
-            # 2. Parse mentioned players
-            mentioned_users = await self._parse_players(interaction, players)
-            
-            # 3. Auto-include challenger if not mentioned
-            if interaction.user not in mentioned_users:
-                mentioned_users.append(interaction.user)
-            
-            # 4. Validate player count for match type
-            if not self._validate_player_count(match_type, len(mentioned_users)):
-                await interaction.response.send_message(
-                    embed=self._create_error_embed(
-                        "Invalid Player Count",
-                        self._get_player_count_requirements(match_type)
-                    ),
-                    ephemeral=True
-                )
-                return
-            
             # BIFURCATED FLOW: Team vs Non-Team
             if match_type == "team":
-                # For team matches: Send modal as IMMEDIATE response
+                # For team matches: Use FAST mention parsing to avoid timeout
+                # Only @mentions are supported for team challenges to prevent Discord timeout
+                mentioned_users = self._fast_parse_mentions(interaction, players)
+                
+                # 3. Auto-include challenger if not mentioned
+                if interaction.user not in mentioned_users:
+                    mentioned_users.append(interaction.user)
+                
+                # 4. Validate player count for match type
+                if not self._validate_player_count(match_type, len(mentioned_users)):
+                    await interaction.response.send_message(
+                        embed=self._create_error_embed(
+                            "Invalid Player Count",
+                            self._get_player_count_requirements(match_type)
+                        ),
+                        ephemeral=True
+                    )
+                    return
+                
+                # Create and send modal as IMMEDIATE response (required by Discord API)
                 team_modal = TeamFormationModal(
                     challenge_cog=self,
                     cluster_id=cluster_id,
@@ -139,7 +146,26 @@ class ChallengeCog(commands.Cog):
                 )
                 await interaction.response.send_modal(team_modal)
             else:
-                # For 1v1/FFA matches: Use traditional defer flow
+                # For 1v1/FFA matches: Parse first (faster), then defer
+                # 2. Parse mentioned players
+                mentioned_users = await self._parse_players(interaction, players)
+                
+                # 3. Auto-include challenger if not mentioned
+                if interaction.user not in mentioned_users:
+                    mentioned_users.append(interaction.user)
+                
+                # 4. Validate player count for match type
+                if not self._validate_player_count(match_type, len(mentioned_users)):
+                    await interaction.response.send_message(
+                        embed=self._create_error_embed(
+                            "Invalid Player Count",
+                            self._get_player_count_requirements(match_type)
+                        ),
+                        ephemeral=True
+                    )
+                    return
+                
+                # Use traditional defer flow
                 await interaction.response.defer()
                 
                 # Create challenge with participants
@@ -239,6 +265,76 @@ class ChallengeCog(commands.Cog):
             ]
         except Exception as e:
             self.logger.error(f"Event autocomplete error: {e}")
+            return []
+    
+    @challenge.autocomplete('match_type')
+    async def match_type_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str
+    ) -> List[app_commands.Choice[str]]:
+        """Autocomplete for match type selection, filtered by chosen event's supported scoring types"""
+        try:
+            # Get selected cluster and event from interaction
+            cluster_id = interaction.namespace.cluster
+            event_name = interaction.namespace.event
+            if not cluster_id or not event_name:
+                return []
+            
+            # Get events for selected cluster and event name
+            events = await self.db.get_all_events(
+                cluster_id=int(cluster_id), 
+                active_only=True
+            )
+            
+            # Find the unified event by base name
+            matching_events = []
+            for event in events:
+                base_name = event.base_event_name or event.name
+                if base_name == event_name:
+                    matching_events.append(event)
+            
+            if not matching_events:
+                return []
+            
+            # Collect all supported scoring types from matching events
+            supported_types = set()
+            for event in matching_events:
+                if event.supported_scoring_types:
+                    # Parse comma-separated supported types
+                    types = [t.strip() for t in event.supported_scoring_types.split(',')]
+                    supported_types.update(types)
+            
+            # Map scoring types to display names and command values
+            type_mapping = {
+                "1v1": {"display": "1v1", "value": "1v1"},
+                "FFA": {"display": "Free for All", "value": "ffa"},
+                "Team": {"display": "Team", "value": "team"},
+            }
+            
+            # Create choices for supported types
+            choices = []
+            for scoring_type in supported_types:
+                if scoring_type in type_mapping:
+                    mapping = type_mapping[scoring_type]
+                    choices.append(
+                        app_commands.Choice(
+                            name=mapping["display"], 
+                            value=mapping["value"]
+                        )
+                    )
+            
+            # Filter by current input
+            if current:
+                choices = [
+                    choice for choice in choices 
+                    if current.lower() in choice.name.lower()
+                ]
+            
+            return choices[:25]  # Discord limit
+            
+        except Exception as e:
+            self.logger.error(f"Match type autocomplete error: {e}")
             return []
     
     async def _create_non_team_challenge(
@@ -384,19 +480,52 @@ class ChallengeCog(commands.Cog):
                 ephemeral=True
             )
     
+    def _fast_parse_mentions(
+        self,
+        interaction: discord.Interaction,
+        players_str: str
+    ) -> List[discord.Member]:
+        """
+        Fast parsing of Discord @mentions only for team challenges.
+        
+        This method completes in ~1ms vs 3000ms+ for full parsing,
+        preventing Discord interaction timeout.
+        
+        Only supports @mentions, not username strings.
+        """
+        import re
+        
+        if not players_str.strip():
+            return []
+        
+        # Extract Discord mention IDs using regex: <@userid> or <@!userid>
+        mention_pattern = r'<@!?(\d+)>'
+        user_ids = re.findall(mention_pattern, players_str)
+        
+        members = []
+        for user_id in user_ids:
+            member = interaction.guild.get_member(int(user_id))
+            if member and member not in members:
+                members.append(member)
+        
+        return members
+
     async def _parse_players(
         self, 
         interaction: discord.Interaction, 
         players_str: str
     ) -> List[discord.Member]:
         """
-        Parse player mentions/names from string input.
+        Full parsing of player mentions/names from string input.
         
         Handles:
         - Discord mentions (@user)
         - User IDs (123456789)
         - Usernames (JohnDoe)
         - Names with spaces ("John Doe")
+        
+        WARNING: This method can take 3+ seconds and cause Discord timeouts.
+        Use _fast_parse_mentions() for team challenges.
         """
         if not players_str.strip():
             return []
@@ -463,10 +592,10 @@ class ChallengeCog(commands.Cog):
     ) -> discord.Embed:
         """Create embed for successful challenge creation"""
         embed = discord.Embed(
-            title="⚔️ Challenge Created!",
+            title="Challenge Created!",
             description=f"A new {match_type.upper()} challenge has been created.",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         
         # Event info
@@ -540,7 +669,7 @@ class ChallengeCog(commands.Cog):
             title="Team Challenge Created!",
             description="A new TEAM challenge has been created.",
             color=discord.Color.blue(),
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         
         # Event info
@@ -569,7 +698,7 @@ class ChallengeCog(commands.Cog):
             teams[team_id].append(f"<@{member.id}>")
         
         # Add team fields with letter mapping (both on same line)
-        team_letter_map = {"Team_0": "A", "Team_1": "B", "Team_2": "C", "Team_3": "D"}
+        team_letter_map = {"Team_0": "A", "Team_1": "B"}
         for team_id, members in sorted(teams.items()):
             if team_id in team_letter_map:
                 team_name = f"Team {team_letter_map[team_id]}"

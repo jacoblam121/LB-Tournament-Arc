@@ -87,8 +87,10 @@ class Database:
             cluster_count = result.scalar()
             
             if cluster_count == 0:
-                self.logger.info("Initializing clusters and events from CSV...")
-                await self.import_clusters_and_events_from_csv(session)
+                # Phase 2.4.1: Disabled automatic CSV import
+                # Use standalone populate_from_csv.py script instead for unified event creation
+                self.logger.info("No clusters found. Run populate_from_csv.py to initialize data.")
+                # await self.import_clusters_and_events_from_csv(session)
     
     @asynccontextmanager
     async def get_session(self):

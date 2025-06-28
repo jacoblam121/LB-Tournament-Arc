@@ -67,10 +67,10 @@ class TeamFormationModal(discord.ui.Modal, title="Team Formation"):
         ])
         
         # Team labels
-        team_labels = ["Team A", "Team B", "Team C", "Team D"]
+        team_labels = ["Team A", "Team B"]
         
-        # Create fields for each team (max 5 fields due to Discord limitation)
-        for i in range(min(self.team_count, 4)):
+        # Create fields for each team (exactly 2 teams)
+        for i in range(self.team_count):
             if i == 0:
                 # First field includes participant list
                 placeholder = "Enter player numbers (e.g., 1 3)"

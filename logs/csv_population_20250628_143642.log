@@ -1,0 +1,65 @@
+2025-06-28 14:36:42,664 - __main__ - INFO - Starting CSV population script...
+2025-06-28 14:36:42,664 - bot.database.database - INFO - Initializing database...
+2025-06-28 14:36:42,673 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-28 14:36:42,673 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("clusters")
+2025-06-28 14:36:42,673 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,674 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("events")
+2025-06-28 14:36:42,674 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,675 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("players")
+2025-06-28 14:36:42,675 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,676 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("games")
+2025-06-28 14:36:42,676 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,676 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("challenges")
+2025-06-28 14:36:42,677 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,677 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("tournaments")
+2025-06-28 14:36:42,678 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,679 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("elo_history")
+2025-06-28 14:36:42,679 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,680 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("tickets")
+2025-06-28 14:36:42,680 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,681 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("matches")
+2025-06-28 14:36:42,681 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,681 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("match_participants")
+2025-06-28 14:36:42,681 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,682 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("challenge_participants")
+2025-06-28 14:36:42,682 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,683 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("match_result_proposals")
+2025-06-28 14:36:42,683 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,684 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("match_confirmations")
+2025-06-28 14:36:42,684 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,684 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("player_event_stats")
+2025-06-28 14:36:42,685 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,685 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("player_event_personal_bests")
+2025-06-28 14:36:42,685 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,686 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("weekly_scores")
+2025-06-28 14:36:42,686 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,687 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("player_weekly_leaderboard_elo")
+2025-06-28 14:36:42,687 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,687 - sqlalchemy.engine.Engine - INFO - PRAGMA main.table_info("ticket_ledger")
+2025-06-28 14:36:42,687 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2025-06-28 14:36:42,689 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-06-28 14:36:42,689 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 14:36:42,690 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-28 14:36:42,749 - sqlalchemy.engine.Engine - INFO - SELECT count(games.id) AS count_1 
+FROM games
+2025-06-28 14:36:42,750 - sqlalchemy.engine.Engine - INFO - [generated in 0.00035s] ()
+2025-06-28 14:36:42,751 - sqlalchemy.engine.Engine - INFO - SELECT count(clusters.id) AS count_1 
+FROM clusters
+2025-06-28 14:36:42,751 - sqlalchemy.engine.Engine - INFO - [generated in 0.00017s] ()
+2025-06-28 14:36:42,752 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-06-28 14:36:42,753 - __main__ - INFO - Clearing existing clusters and events...
+2025-06-28 14:36:42,753 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-28 14:36:42,754 - sqlalchemy.engine.Engine - INFO - DELETE FROM events
+2025-06-28 14:36:42,754 - sqlalchemy.engine.Engine - INFO - [generated in 0.00018s] ()
+2025-06-28 14:36:42,755 - sqlalchemy.engine.Engine - INFO - DELETE FROM clusters
+2025-06-28 14:36:42,755 - sqlalchemy.engine.Engine - INFO - [generated in 0.00016s] ()
+2025-06-28 14:36:42,756 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-06-28 14:36:42,760 - __main__ - INFO - Existing data cleared successfully
+2025-06-28 14:36:42,761 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-06-28 14:36:42,763 - sqlalchemy.engine.Engine - INFO - INSERT INTO clusters (name, number, is_active, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING id, created_at
+2025-06-28 14:36:42,763 - sqlalchemy.engine.Engine - INFO - [generated in 0.00032s] ('Chess', 1, 1)
+2025-06-28 14:36:42,764 - __main__ - INFO - Created cluster 1: Chess
+2025-06-28 14:36:42,764 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-06-28 14:36:42,765 - __main__ - ERROR - Error during CSV population: name 'select' is not defined
+2025-06-28 14:36:42,766 - bot.database.database - INFO - Database connection closed
+2025-06-28 14:36:42,766 - __main__ - ERROR - CSV population failed: name 'select' is not defined

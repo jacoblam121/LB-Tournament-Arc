@@ -5,7 +5,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, List, Dict
 
@@ -53,6 +53,7 @@ class Event(Base):
     
     # Scoring configuration
     scoring_type = Column(String(20), nullable=True)  # 1v1, FFA, Team, Leaderboard - DEPRECATED: moving to match level
+    supported_scoring_types = Column(String(100), nullable=True)  # Phase 2.4.1: Comma-separated list of supported scoring types
     score_direction = Column(String(10), nullable=True)  # "HIGH" or "LOW" for leaderboard events
     crownslayer_pool = Column(Integer, default=300)
     
@@ -195,7 +196,7 @@ class Challenge(Base):
     def is_expired(self) -> bool:
         if not self.expires_at:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     @property
     def is_active(self) -> bool:
@@ -348,6 +349,9 @@ class Match(Base):
     event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
     match_format = Column(SQLEnum(MatchFormat), nullable=False)
     status = Column(SQLEnum(MatchStatus), default=MatchStatus.PENDING)
+    
+    # Phase 2.4.1: Unified Elo - scoring type moved from Event to Match level
+    scoring_type = Column(String(20), nullable=False, default='1v1')
     
     # Optional challenge link (for 1v1 matches originating from challenges)
     challenge_id = Column(Integer, ForeignKey('challenges.id'), nullable=True)

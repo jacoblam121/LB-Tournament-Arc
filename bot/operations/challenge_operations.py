@@ -6,7 +6,7 @@ supporting N-player challenges with proper role assignment.
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,7 +100,7 @@ class ChallengeOperations:
             challenge = Challenge(
                 event_id=event.id,
                 status=ChallengeStatus.PENDING,
-                expires_at=datetime.utcnow() + timedelta(hours=expires_in_hours),
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),
                 elo_at_stake=True  # Default to competitive
             )
             session.add(challenge)
@@ -201,7 +201,7 @@ class ChallengeOperations:
             
             # Update participant status
             participant.status = ConfirmationStatus.CONFIRMED
-            participant.responded_at = datetime.utcnow()
+            participant.responded_at = datetime.now(timezone.utc)
             
             # Check if all participants have accepted
             all_accepted = all(
@@ -211,7 +211,7 @@ class ChallengeOperations:
             
             if all_accepted:
                 challenge.status = ChallengeStatus.ACCEPTED
-                challenge.accepted_at = datetime.utcnow()
+                challenge.accepted_at = datetime.now(timezone.utc)
                 self.logger.info(f"Challenge {challenge_id} fully accepted by all participants")
             
             await session.flush()
@@ -263,7 +263,7 @@ class ChallengeOperations:
             
             # Update participant status
             participant.status = ConfirmationStatus.REJECTED
-            participant.responded_at = datetime.utcnow()
+            participant.responded_at = datetime.now(timezone.utc)
             
             # Mark challenge as declined
             challenge.status = ChallengeStatus.DECLINED
@@ -375,7 +375,7 @@ class ChallengeOperations:
         elif match_type_lower == "ffa":
             return 3 <= player_count <= 8
         elif match_type_lower == "team":
-            return player_count >= 2 and player_count % 2 == 0  # Even number for teams
+            return player_count >= 2 and player_count <= 8  # Allow uneven teams
         else:
             return False
     
