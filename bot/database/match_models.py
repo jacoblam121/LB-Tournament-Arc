@@ -31,6 +31,7 @@ class MatchStatus(Enum):
     """Status of a match from creation to completion"""
     PENDING = "pending"      # Match created, waiting for participants
     ACTIVE = "active"        # Match in progress
+    AWAITING_CONFIRMATION = "awaiting_confirmation"  # Results submitted, awaiting confirmation
     COMPLETED = "completed"  # Match finished with results
     CANCELLED = "cancelled"  # Match cancelled by admin
 

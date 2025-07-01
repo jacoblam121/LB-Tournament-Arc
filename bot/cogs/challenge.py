@@ -19,10 +19,12 @@ from bot.database.models import (
 from bot.database.database import Database
 from bot.operations.challenge_operations import (
     ChallengeOperations, ChallengeOperationError, 
-    DuplicateChallengeError, InvalidPlayerCountError
+    DuplicateChallengeError, InvalidPlayerCountError,
+    ChallengeAcceptanceResult
 )
 from bot.operations.player_operations import PlayerOperations
 from bot.ui.team_formation_modal import TeamFormationModal
+from bot.ui.challenge_pagination import ChallengePaginationView
 from bot.utils.logger import setup_logger
 from bot.config import Config
 
@@ -337,6 +339,182 @@ class ChallengeCog(commands.Cog):
             self.logger.error(f"Match type autocomplete error: {e}")
             return []
     
+    @app_commands.command(
+        name="accept",
+        description="Accept a pending challenge invitation"
+    )
+    @app_commands.describe(
+        challenge_id="Challenge ID to accept (optional - will auto-detect if you have only one pending)"
+    )
+    async def accept_challenge(
+        self,
+        interaction: discord.Interaction,
+        challenge_id: Optional[int] = None
+    ):
+        """Accept a challenge invitation"""
+        try:
+            # Auto-discovery if no challenge_id provided
+            if challenge_id is None:
+                pending_challenges = await self.challenge_ops.get_pending_challenges_for_player(
+                    interaction.user.id
+                )
+                
+                if len(pending_challenges) == 0:
+                    await interaction.response.send_message(
+                        embed=self._create_error_embed(
+                            "No Pending Challenges",
+                            "You have no pending challenge invitations. Use `/challenge` to create new challenges."
+                        ),
+                        ephemeral=True
+                    )
+                    return
+                elif len(pending_challenges) > 1:
+                    # Multiple pending challenges - require explicit ID
+                    challenge_list = "\n".join([
+                        f"• Challenge #{c.id} - {c.event.name}"
+                        for c in pending_challenges[:5]  # Show first 5
+                    ])
+                    if len(pending_challenges) > 5:
+                        challenge_list += f"\n... and {len(pending_challenges) - 5} more"
+                    
+                    await interaction.response.send_message(
+                        embed=self._create_error_embed(
+                            "Multiple Pending Challenges",
+                            f"You have {len(pending_challenges)} pending challenges. "
+                            f"Please specify the challenge ID to accept:\n\n{challenge_list}\n\n"
+                            f"Use `/incoming-challenges` to see all pending invitations."
+                        ),
+                        ephemeral=True
+                    )
+                    return
+                else:
+                    # Exactly one pending challenge - use it
+                    challenge_id = pending_challenges[0].id
+            
+            await interaction.response.defer()
+            
+            # Process acceptance
+            result = await self.challenge_ops.accept_challenge(
+                challenge_id=challenge_id,
+                player_discord_id=interaction.user.id
+            )
+            
+            if result.success:
+                if result.match_created:
+                    # All participants accepted - match created
+                    embed = self._create_match_ready_embed(result.match, result.challenge)
+                    await interaction.followup.send(embed=embed)
+                else:
+                    # Partial acceptance - update status
+                    embed = self._create_updated_challenge_embed(result.challenge)
+                    await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send(
+                    embed=self._create_error_embed("Cannot Accept", result.error_message),
+                    ephemeral=True
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Accept challenge error: {e}", exc_info=True)
+            
+            # Handle error response based on interaction state
+            error_embed = self._create_error_embed(
+                "Accept Failed",
+                "An unexpected error occurred. Please try again."
+            )
+            
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
+    
+    @app_commands.command(
+        name="decline", 
+        description="Decline a pending challenge invitation"
+    )
+    @app_commands.describe(
+        challenge_id="Challenge ID to decline (optional - will auto-detect if you have only one pending)",
+        reason="Optional reason for declining"
+    )
+    async def decline_challenge(
+        self,
+        interaction: discord.Interaction,
+        challenge_id: Optional[int] = None,
+        reason: Optional[str] = None
+    ):
+        """Decline a challenge invitation"""
+        try:
+            # Auto-discovery if no challenge_id provided
+            if challenge_id is None:
+                pending_challenges = await self.challenge_ops.get_pending_challenges_for_player(
+                    interaction.user.id
+                )
+                
+                if len(pending_challenges) == 0:
+                    await interaction.response.send_message(
+                        embed=self._create_error_embed(
+                            "No Pending Challenges",
+                            "You have no pending challenge invitations."
+                        ),
+                        ephemeral=True
+                    )
+                    return
+                elif len(pending_challenges) > 1:
+                    # Multiple pending challenges - require explicit ID
+                    challenge_list = "\n".join([
+                        f"• Challenge #{c.id} - {c.event.name}"
+                        for c in pending_challenges[:5]  # Show first 5
+                    ])
+                    if len(pending_challenges) > 5:
+                        challenge_list += f"\n... and {len(pending_challenges) - 5} more"
+                    
+                    await interaction.response.send_message(
+                        embed=self._create_error_embed(
+                            "Multiple Pending Challenges",
+                            f"You have {len(pending_challenges)} pending challenges. "
+                            f"Please specify the challenge ID to decline:\n\n{challenge_list}\n\n"
+                            f"Use `/incoming-challenges` to see all pending invitations."
+                        ),
+                        ephemeral=True
+                    )
+                    return
+                else:
+                    # Exactly one pending challenge - use it
+                    challenge_id = pending_challenges[0].id
+            
+            await interaction.response.defer()
+            
+            # Process decline
+            result = await self.challenge_ops.decline_challenge(
+                challenge_id=challenge_id,
+                player_discord_id=interaction.user.id,
+                reason=reason
+            )
+            
+            if result.success:
+                # Challenge cancelled - create cancellation embed
+                embed = self._create_challenge_cancelled_embed(result.challenge, interaction.user, reason)
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send(
+                    embed=self._create_error_embed("Cannot Decline", result.error_message),
+                    ephemeral=True
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Decline challenge error: {e}", exc_info=True)
+            
+            # Handle error response based on interaction state
+            error_embed = self._create_error_embed(
+                "Decline Failed",
+                "An unexpected error occurred. Please try again."
+            )
+            
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
+    
     async def _create_non_team_challenge(
         self,
         interaction: discord.Interaction,
@@ -479,6 +657,142 @@ class ChallengeCog(commands.Cog):
                 ),
                 ephemeral=True
             )
+    
+    
+    def _create_updated_challenge_embed(self, challenge: Challenge) -> discord.Embed:
+        """Create embed showing current acceptance status"""
+        embed = discord.Embed(
+            title="⏳ Challenge Status Update",
+            description=f"Challenge #{challenge.id} acceptance in progress",
+            color=discord.Color.orange(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        # Show acceptance progress
+        total_participants = len(challenge.participants)
+        accepted_count = sum(1 for p in challenge.participants 
+                            if p.status == ConfirmationStatus.CONFIRMED)
+        
+        embed.add_field(
+            name="Progress",
+            value=f"{accepted_count}/{total_participants} participants accepted",
+            inline=True
+        )
+        
+        # Event info
+        embed.add_field(
+            name="Event",
+            value=f"{challenge.event.name}",
+            inline=True
+        )
+        
+        # Empty field for layout
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
+        
+        # List participant status with emojis
+        status_list = []
+        for participant in challenge.participants:
+            emoji = {
+                ConfirmationStatus.PENDING: "⏳",
+                ConfirmationStatus.CONFIRMED: "✅", 
+                ConfirmationStatus.REJECTED: "❌"
+            }.get(participant.status, "❓")
+            
+            status_list.append(f"{emoji} <@{participant.player.discord_id}>")
+        
+        embed.add_field(
+            name="Participants",
+            value="\n".join(status_list),
+            inline=False
+        )
+        
+        return embed
+    
+    def _create_match_ready_embed(self, match, challenge: Challenge) -> discord.Embed:
+        """Create embed when all participants accept and match is created"""
+        embed = discord.Embed(
+            title="🎮 Match Ready!",
+            description=f"All participants accepted - Match #{match.id} created",
+            color=discord.Color.green(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        embed.add_field(
+            name="Event", 
+            value=challenge.event.name,
+            inline=True
+        )
+        
+        embed.add_field(
+            name="Match Type",
+            value=match.scoring_type.upper(),
+            inline=True
+        )
+        
+        embed.add_field(
+            name="Match ID",
+            value=f"#{match.id}",
+            inline=True
+        )
+        
+        # Participants list
+        participant_list = []
+        for participant in challenge.participants:
+            player_mention = f"<@{participant.player.discord_id}>"
+            if participant.team_id:
+                participant_list.append(f"👥 {player_mention} (Team {participant.team_id})")
+            else:
+                participant_list.append(f"⚔️ {player_mention}")
+        
+        embed.add_field(
+            name="Participants",
+            value="\n".join(participant_list),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Next Steps",
+            value="Play your match and report results using `/match_result`",
+            inline=False
+        )
+        
+        return embed
+    
+    def _create_challenge_cancelled_embed(self, challenge: Challenge, declining_user: discord.User, reason: Optional[str]) -> discord.Embed:
+        """Create embed when challenge is cancelled due to decline"""
+        embed = discord.Embed(
+            title="❌ Challenge Cancelled",
+            description=f"Challenge #{challenge.id} has been cancelled",
+            color=discord.Color.red(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        embed.add_field(
+            name="Event",
+            value=challenge.event.name,
+            inline=True
+        )
+        
+        embed.add_field(
+            name="Declined by",
+            value=f"<@{declining_user.id}>",
+            inline=True
+        )
+        
+        if reason:
+            embed.add_field(
+                name="Reason",
+                value=reason,
+                inline=False
+            )
+        
+        embed.add_field(
+            name="Note",
+            value="When any participant declines, the entire challenge is cancelled.",
+            inline=False
+        )
+        
+        return embed
     
     def _fast_parse_mentions(
         self,
@@ -627,7 +941,8 @@ class ChallengeCog(commands.Cog):
             player_mention = f"<@{participant.player.discord_id}>"
             
             if participant.role == ChallengeRole.CHALLENGER:
-                participant_list.append(f"{player_mention} (Challenger)")
+                # Challengers are auto-confirmed, so always show ✅
+                participant_list.append(f"✅ {player_mention} (Challenger)")
                 challenger_id = participant.player.discord_id
             else:
                 status_emoji = "⏳" if participant.status == ConfirmationStatus.PENDING else "✅"
@@ -733,6 +1048,566 @@ class ChallengeCog(commands.Cog):
             description=description,
             color=discord.Color.red()
         )
+    
+    # Phase 2.4.3: Challenge Management Commands
+    
+    @app_commands.command(
+        name="outgoing-challenges",
+        description="View all challenges you've created"
+    )
+    async def outgoing_challenges(
+        self,
+        interaction: discord.Interaction,
+        show_cancelled: bool = False,
+        show_completed: bool = False
+    ):
+        """View all challenges created by the user"""
+        try:
+            await interaction.response.defer()
+            
+            # Get challenges where user is the challenger
+            challenges = await self.challenge_ops.get_outgoing_challenges(
+                interaction.user.id,
+                include_expired=True,
+                show_cancelled=show_cancelled,
+                show_completed=show_completed
+            )
+            
+            if not challenges:
+                embed = discord.Embed(
+                    title="📤 Outgoing Challenges",
+                    description="You have no outgoing challenges.",
+                    color=discord.Color.blue()
+                )
+                await interaction.followup.send(embed=embed)
+                return
+            
+            # Create embed for challenges
+            embeds = self._create_challenge_list_embeds(
+                challenges, 
+                "📤 Outgoing Challenges",
+                interaction.user
+            )
+            
+            # Send with pagination if multiple pages
+            if len(embeds) > 1:
+                view = ChallengePaginationView(embeds)
+                await interaction.followup.send(embed=embeds[0], view=view)
+            else:
+                await interaction.followup.send(embed=embeds[0])
+                
+        except Exception as e:
+            self.logger.error(f"Error in outgoing_challenges: {e}", exc_info=True)
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Failed to retrieve challenges",
+                    "An unexpected error occurred. Please try again."
+                ),
+                ephemeral=True
+            )
+    
+    @app_commands.command(
+        name="incoming-challenges",
+        description="View pending challenges sent to you"
+    )
+    async def incoming_challenges(
+        self,
+        interaction: discord.Interaction,
+        show_cancelled: bool = False,
+        show_completed: bool = False
+    ):
+        """View pending challenges where user needs to respond"""
+        try:
+            await interaction.response.defer()
+            
+            # Get pending challenges where user is challenged
+            challenges = await self.challenge_ops.get_incoming_challenges(
+                interaction.user.id,
+                show_cancelled=show_cancelled,
+                show_completed=show_completed
+            )
+            
+            if not challenges:
+                embed = discord.Embed(
+                    title="📥 Incoming Challenges",
+                    description="You have no pending challenge invitations.",
+                    color=discord.Color.blue()
+                )
+                await interaction.followup.send(embed=embed)
+                return
+            
+            # Create embed for challenges
+            embeds = self._create_challenge_list_embeds(
+                challenges,
+                "📥 Incoming Challenges", 
+                interaction.user,
+                show_accept_hint=True
+            )
+            
+            # Send with pagination if multiple pages
+            if len(embeds) > 1:
+                view = ChallengePaginationView(embeds)
+                await interaction.followup.send(embed=embeds[0], view=view)
+            else:
+                await interaction.followup.send(embed=embeds[0])
+                
+        except Exception as e:
+            self.logger.error(f"Error in incoming_challenges: {e}", exc_info=True)
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Failed to retrieve challenges",
+                    "An unexpected error occurred. Please try again."
+                ),
+                ephemeral=True
+            )
+    
+    # DEPRECATED 2025-01-01 - ACTIVE CHALLENGES COMMAND
+    # This command conflated Challenge (invitation system) with Match (game tracking system).
+    # Use /incoming-challenges and /outgoing-challenges with show_completed=true for challenge history.
+    # Future /active-matches command will properly track ongoing games via Match table.
+    # 
+    # @app_commands.command(
+    #     name="active-challenges",
+    #     description="View your ongoing accepted challenges and matches"
+    # )
+    # async def active_challenges(
+    #     self,
+    #     interaction: discord.Interaction,
+    #     show_cancelled: bool = False
+    # ):
+    #     """View accepted challenges that are ready to play"""
+    #     try:
+    #         await interaction.response.defer()
+    #         
+    #         # Get accepted challenges where user is a participant
+    #         challenges = await self.challenge_ops.get_active_challenges(
+    #             interaction.user.id,
+    #             show_cancelled=show_cancelled
+    #         )
+    #         
+    #         if not challenges:
+    #             embed = discord.Embed(
+    #                 title="🎮 Active Challenges",
+    #                 description="You have no active challenges or matches.",
+    #                 color=discord.Color.green()
+    #             )
+    #             await interaction.followup.send(embed=embed)
+    #             return
+    #         
+    #         # Create embed for challenges
+    #         embeds = self._create_challenge_list_embeds(
+    #             challenges,
+    #             "🎮 Active Challenges",
+    #             interaction.user,
+    #             show_match_hint=True
+    #         )
+    #         
+    #         # Send with pagination if multiple pages
+    #         if len(embeds) > 1:
+    #             view = ChallengePaginationView(embeds)
+    #             await interaction.followup.send(embed=embeds[0], view=view)
+    #         else:
+    #             await interaction.followup.send(embed=embeds[0])
+    #             
+    #     except Exception as e:
+    #         self.logger.error(f"Error in active_challenges: {e}", exc_info=True)
+    #         await interaction.followup.send(
+    #             embed=self._create_error_embed(
+    #                 "Failed to retrieve challenges",
+    #                 "An unexpected error occurred. Please try again."
+    #             ),
+    #             ephemeral=True
+    #         )
+    
+    @app_commands.command(
+        name="cancel-challenge",
+        description="Cancel a pending challenge you created"
+    )
+    @app_commands.describe(
+        challenge_id="Challenge ID to cancel (optional - will auto-cancel latest if not provided)"
+    )
+    async def cancel_challenge(
+        self,
+        interaction: discord.Interaction,
+        challenge_id: Optional[int] = None
+    ):
+        """Cancel a pending challenge created by the user"""
+        try:
+            await interaction.response.defer()
+            
+            if challenge_id is None:
+                # Auto-cancel latest pending challenge
+                cancelled = await self.challenge_ops.cancel_latest_pending_challenge(
+                    interaction.user.id
+                )
+                
+                if not cancelled:
+                    await interaction.followup.send(
+                        embed=self._create_error_embed(
+                            "No Pending Challenges",
+                            "You have no pending challenges to cancel."
+                        ),
+                        ephemeral=True
+                    )
+                    return
+            else:
+                # Cancel specific challenge
+                try:
+                    cancelled = await self.challenge_ops.cancel_challenge(
+                        challenge_id,
+                        interaction.user.id
+                    )
+                except ChallengeOperationError as e:
+                    await interaction.followup.send(
+                        embed=self._create_error_embed(
+                            "Cannot Cancel Challenge",
+                            str(e)
+                        ),
+                        ephemeral=True
+                    )
+                    return
+            
+            # Create success embed
+            embed = self._create_challenge_cancelled_embed(
+                cancelled,
+                interaction.user,
+                "Challenge cancelled by creator"
+            )
+            await interaction.followup.send(embed=embed)
+            
+            # Try to notify other participants
+            await self._notify_challenge_cancellation(cancelled, interaction.user)
+            
+        except Exception as e:
+            self.logger.error(f"Error in cancel_challenge: {e}", exc_info=True)
+            await interaction.followup.send(
+                embed=self._create_error_embed(
+                    "Failed to cancel challenge",
+                    "An unexpected error occurred. Please try again."
+                ),
+                ephemeral=True
+            )
+    
+    def _create_challenge_list_embeds(
+        self,
+        challenges: List[Challenge],
+        title: str,
+        user: discord.User,
+        show_accept_hint: bool = False,
+        show_match_hint: bool = False,
+        items_per_page: int = 10
+    ) -> List[discord.Embed]:
+        """Create paginated embeds for challenge lists"""
+        embeds = []
+        total_pages = (len(challenges) + items_per_page - 1) // items_per_page
+        
+        for page_num in range(total_pages):
+            start_idx = page_num * items_per_page
+            end_idx = min(start_idx + items_per_page, len(challenges))
+            page_challenges = challenges[start_idx:end_idx]
+            
+            embed = discord.Embed(
+                title=title,
+                color=discord.Color.blue(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            
+            # Add challenges to this page
+            for challenge in page_challenges:
+                field_value = self._format_challenge_summary(challenge, user)
+                embed.add_field(
+                    name=f"Challenge #{challenge.id}",
+                    value=field_value,
+                    inline=False
+                )
+            
+            # Add footer with pagination info and hints
+            footer_text = f"Page {page_num + 1}/{total_pages} | Total: {len(challenges)}"
+            if show_accept_hint:
+                footer_text += " | Use /accept to respond"
+            elif show_match_hint:
+                footer_text += " | Use /match_result to report results"
+            
+            embed.set_footer(text=footer_text)
+            embeds.append(embed)
+        
+        return embeds
+    
+    def _format_challenge_summary(
+        self,
+        challenge: Challenge,
+        viewer: discord.User
+    ) -> str:
+        """Format a challenge summary for list display"""
+        lines = []
+        
+        # Location info with cluster, event, and type
+        cluster_name = challenge.event.cluster.name if challenge.event.cluster else "Unknown"
+        scoring_type = challenge.event.scoring_type or "Unknown"
+        lines.append(f"**Location:** {cluster_name} → {challenge.event.name} → {scoring_type.upper()}")
+        
+        # Status with emoji
+        status_emoji = {
+            ChallengeStatus.PENDING: "⏳",
+            ChallengeStatus.ACCEPTED: "✅",
+            ChallengeStatus.DECLINED: "❌",
+            ChallengeStatus.EXPIRED: "⏰",
+            ChallengeStatus.COMPLETED: "🏁",
+            ChallengeStatus.CANCELLED: "🚫"
+        }.get(challenge.status, "❓")
+        lines.append(f"**Status:** {status_emoji} {challenge.status.value.title()}")
+        
+        # Participants summary
+        participant_mentions = []
+        for p in challenge.participants:
+            if p.player.discord_id == viewer.id:
+                participant_mentions.append(f"**You**")
+            else:
+                participant_mentions.append(f"<@{p.player.discord_id}>")
+        lines.append(f"**Players:** {', '.join(participant_mentions)}")
+        
+        # Time info
+        if challenge.status == ChallengeStatus.PENDING and challenge.expires_at:
+            lines.append(f"**Expires:** <t:{int(challenge.expires_at.timestamp())}:R>")
+        elif challenge.status == ChallengeStatus.ACCEPTED and challenge.accepted_at:
+            lines.append(f"**Accepted:** <t:{int(challenge.accepted_at.timestamp())}:R>")
+        
+        # Your role in the challenge
+        your_participant = next(
+            (p for p in challenge.participants if p.player.discord_id == viewer.id),
+            None
+        )
+        if your_participant:
+            role_text = "Challenger" if your_participant.role == ChallengeRole.CHALLENGER else "Challenged"
+            lines.append(f"**Your Role:** {role_text}")
+        
+        return "\n".join(lines)
+    
+    async def _notify_challenge_cancellation(
+        self,
+        challenge: Challenge,
+        canceller: discord.User
+    ):
+        """Send hybrid notifications about challenge cancellation"""
+        
+        # First, always try to send a channel notification (less intrusive)
+        await self._send_channel_notification(challenge, canceller)
+        
+        # Then, send DMs only to users who have opted in
+        await self._send_dm_notifications(challenge, canceller)
+    
+    async def _send_channel_notification(
+        self,
+        challenge: Challenge,
+        canceller: discord.User
+    ):
+        """Send cancellation notification in the original challenge channel"""
+        try:
+            if challenge.discord_channel_id:
+                channel = self.bot.get_channel(challenge.discord_channel_id)
+                if channel:
+                    # Get participant mentions (excluding canceller)
+                    participants = [
+                        f"<@{p.player.discord_id}>" 
+                        for p in challenge.participants 
+                        if p.player.discord_id != canceller.id
+                    ]
+                    
+                    embed = discord.Embed(
+                        title="❌ Challenge Cancelled",
+                        description=(
+                            f"Challenge #{challenge.id} for **{challenge.event.name}** "
+                            f"has been cancelled by {canceller.mention}."
+                        ),
+                        color=discord.Color.red(),
+                        timestamp=datetime.now(timezone.utc)
+                    )
+                    
+                    if participants:
+                        embed.add_field(
+                            name="Participants Notified",
+                            value=", ".join(participants),
+                            inline=False
+                        )
+                    
+                    embed.set_footer(
+                        text="Want DM notifications? Use /notification-preferences dm_cancellations:True"
+                    )
+                    
+                    content = " ".join(participants) if participants else None
+                    await channel.send(content=content, embed=embed)
+                    
+                    self.logger.info(
+                        f"Sent channel notification for challenge {challenge.id} cancellation "
+                        f"to channel {channel.name} ({channel.id})"
+                    )
+                    return True
+                    
+        except Exception as e:
+            self.logger.error(
+                f"Failed to send channel notification for challenge {challenge.id}: {e}",
+                exc_info=True
+            )
+        
+        return False
+    
+    async def _send_dm_notifications(
+        self,
+        challenge: Challenge,
+        canceller: discord.User
+    ):
+        """Send DM notifications to opted-in participants"""
+        
+        # Get participants who want DM notifications (excluding canceller)
+        async with self.db.get_session() as session:
+            from sqlalchemy import select, and_
+            from bot.database.models import Player
+            
+            participant_ids = [
+                p.player.discord_id for p in challenge.participants 
+                if p.player.discord_id != canceller.id
+            ]
+            
+            if not participant_ids:
+                return
+            
+            # Query for players who have opted in to DM notifications
+            stmt = (
+                select(Player)
+                .where(
+                    and_(
+                        Player.discord_id.in_(participant_ids),
+                        Player.dm_challenge_notifications == True
+                    )
+                )
+            )
+            
+            result = await session.execute(stmt)
+            opted_in_players = result.scalars().all()
+            
+            # Send DMs to opted-in users
+            dm_count = 0
+            for player in opted_in_players:
+                try:
+                    user = self.bot.get_user(player.discord_id)
+                    if user:
+                        embed = discord.Embed(
+                            title="🔔 Challenge Cancelled",
+                            description=(
+                                f"Challenge #{challenge.id} for **{challenge.event.name}** "
+                                f"has been cancelled by {canceller.mention}.\n\n"
+                                f"This DM was sent because you have notifications enabled. "
+                                f"Disable with `/notification-preferences dm_cancellations:False`"
+                            ),
+                            color=discord.Color.red(),
+                            timestamp=datetime.now(timezone.utc)
+                        )
+                        
+                        await user.send(embed=embed)
+                        dm_count += 1
+                        
+                except discord.Forbidden:
+                    # User has DMs disabled - they'll see the channel notification
+                    self.logger.info(
+                        f"Could not DM user {player.discord_id} "
+                        f"about challenge {challenge.id} cancellation (DMs disabled)"
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        f"Error sending DM to user {player.discord_id}: {e}",
+                        exc_info=True
+                    )
+            
+            if dm_count > 0:
+                self.logger.info(
+                    f"Sent DM notifications to {dm_count} opted-in users "
+                    f"for challenge {challenge.id} cancellation"
+                )
+    
+    @app_commands.command(
+        name="notification-preferences",
+        description="Configure your notification preferences for challenge events"
+    )
+    @app_commands.describe(
+        dm_cancellations="Receive DMs when challenges you're in are cancelled (default: off)"
+    )
+    async def notification_preferences(
+        self,
+        interaction: discord.Interaction,
+        dm_cancellations: bool
+    ):
+        """Configure notification preferences for challenge events"""
+        try:
+            async with self.db.transaction() as session:
+                # Get or create player record
+                player = await self.player_ops.get_or_create_player(
+                    interaction.user, session=session
+                )
+                
+                # Update notification preference
+                old_preference = player.dm_challenge_notifications
+                player.dm_challenge_notifications = dm_cancellations
+                
+                # Create response embed
+                if dm_cancellations:
+                    title = "🔔 DM Notifications Enabled"
+                    description = (
+                        "You will now receive direct messages when:\n"
+                        "• Challenges you're participating in are cancelled\n\n"
+                        "You can disable this anytime with `/notification-preferences dm_cancellations:False`"
+                    )
+                    color = discord.Color.green()
+                    
+                    # Send a test DM to confirm it works
+                    try:
+                        test_embed = discord.Embed(
+                            title="✅ Notifications Enabled",
+                            description="You'll receive DMs like this when challenges are cancelled.",
+                            color=discord.Color.blue()
+                        )
+                        await interaction.user.send(embed=test_embed)
+                    except discord.Forbidden:
+                        # User has DMs disabled
+                        description += "\n\n⚠️ **Warning**: Your DMs appear to be disabled. Enable DMs from server members to receive notifications."
+                        color = discord.Color.orange()
+                        
+                else:
+                    title = "🔕 DM Notifications Disabled"
+                    description = (
+                        "You will no longer receive direct messages for challenge cancellations.\n\n"
+                        "You'll still see notifications in the original challenge channels.\n"
+                        "Enable DMs anytime with `/notification-preferences dm_cancellations:True`"
+                    )
+                    color = discord.Color.orange()
+                
+                embed = discord.Embed(
+                    title=title,
+                    description=description,
+                    color=color,
+                    timestamp=datetime.now(timezone.utc)
+                )
+                
+                if old_preference != dm_cancellations:
+                    embed.set_footer(text="Preference updated successfully")
+                else:
+                    embed.set_footer(text="No change to existing preference")
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                
+                self.logger.info(
+                    f"User {interaction.user.id} ({interaction.user.name}) "
+                    f"{'enabled' if dm_cancellations else 'disabled'} DM notifications"
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Error updating notification preferences: {e}", exc_info=True)
+            await interaction.response.send_message(
+                embed=self._create_error_embed(
+                    "Settings Update Failed",
+                    "Failed to update your notification preferences. Please try again."
+                ),
+                ephemeral=True
+            )
 
 
 async def setup(bot):

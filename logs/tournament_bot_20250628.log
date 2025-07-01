@@ -1870,3 +1870,328 @@ AttributeError: 'Webhook' object has no attribute 'send_modal'
 2025-06-28 16:25:13 - bot.cogs.challenge - INFO - Challenge 26 created by 492208498533203970 for event Krunker (1v1)
 2025-06-28 16:25:47 - __main__ - INFO - Shutting down Tournament Bot...
 2025-06-28 16:25:47 - bot.database.database - INFO - Database connection closed
+2025-06-28 17:05:34 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 17:05:34 - bot.database.database - INFO - Initializing database...
+2025-06-28 17:05:34 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 17:05:34 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 17:05:34 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 17:05:34 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 17:05:34 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 17:05:34 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 17:05:34 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 17:05:34 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 17:05:34 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 17:05:34 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 17:05:34 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 17:05:34 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 17:05:34 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 17:05:34 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 17:05:34 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 17:05:34 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 17:05:37 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 17:05:37 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 17:05:37 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 17:06:43 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 17:06:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 17:06:43 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:06:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:06:43 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:06:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:06:43 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 27 for event 2 with 2 participants
+2025-06-28 17:06:43 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 27 for event 2 with 2 participants
+2025-06-28 17:06:43 - bot.cogs.challenge - INFO - Challenge 27 created by 492208498533203970 for event Blitz (1v1)
+2025-06-28 17:06:56 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 27 partially accepted by player 632154057477455882
+2025-06-28 17:06:56 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 27 partially accepted by player 632154057477455882
+2025-06-28 17:18:52 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 17:18:52 - bot.database.database - INFO - Database connection closed
+2025-06-28 17:18:54 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 17:18:54 - bot.database.database - INFO - Initializing database...
+2025-06-28 17:18:54 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 17:18:54 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 17:18:54 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 17:18:54 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 17:18:54 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 17:18:54 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 17:18:54 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 17:18:54 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 17:18:54 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 17:18:54 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 17:18:54 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 17:18:54 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 17:18:54 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 17:18:54 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 17:18:54 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 17:18:54 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 17:18:58 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 17:18:58 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 17:18:58 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 17:18:59 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 17:18:59 - bot.database.database - INFO - Database connection closed
+2025-06-28 17:19:03 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 17:19:03 - bot.database.database - INFO - Initializing database...
+2025-06-28 17:19:03 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 17:19:03 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 17:19:03 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 17:19:35 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 17:19:35 - bot.database.database - INFO - Database connection closed
+2025-06-28 17:19:40 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 17:19:40 - bot.database.database - INFO - Initializing database...
+2025-06-28 17:19:40 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 17:19:40 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 17:19:40 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 17:20:26 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 17:20:26 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 17:20:26 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 17:20:26 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 17:20:26 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 17:20:26 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 17:20:26 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 17:20:26 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 17:20:26 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 17:20:26 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 17:20:26 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 17:20:26 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 17:20:26 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 17:20:28 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 17:20:28 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 17:20:28 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 17:20:43 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 17:20:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 17:20:43 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:20:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:20:43 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:20:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:20:43 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 28 for event 5 with 2 participants
+2025-06-28 17:20:43 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 28 for event 5 with 2 participants
+2025-06-28 17:20:44 - bot.cogs.challenge - INFO - Challenge 28 created by 492208498533203970 for event Showdown (Monotype) (1v1)
+2025-06-28 17:20:58 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created Match 85 from Challenge 28 with 2 participants (1v1)
+2025-06-28 17:20:58 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created Match 85 from Challenge 28 with 2 participants (1v1)
+2025-06-28 17:20:58 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 28 fully accepted - Match 85 created
+2025-06-28 17:20:58 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 28 fully accepted - Match 85 created
+2025-06-28 17:21:12 - bot.cogs.match_commands - ERROR - Modal: Failed to process match 85 for modal logic: 'NoneType' object has no attribute 'discord_id'
+2025-06-28 17:21:12 - __main__ - ERROR - Unexpected error in command match-report: Hybrid command raised an error: Command 'match-report' raised an exception: AttributeError: 'NoneType' object has no attribute 'discord_id'
+2025-06-28 17:21:12 - __main__ - ERROR - NoneType: None
+
+2025-06-28 17:26:49 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 17:26:49 - bot.database.database - INFO - Database connection closed
+2025-06-28 17:26:55 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 17:26:55 - bot.database.database - INFO - Initializing database...
+2025-06-28 17:26:55 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 17:26:55 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 17:26:55 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 17:26:55 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 17:26:55 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 17:26:55 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 17:26:55 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 17:26:55 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 17:26:55 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 17:26:55 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 17:26:55 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 17:26:55 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 17:26:55 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 17:26:55 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 17:26:55 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 17:26:55 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 17:26:57 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 17:26:57 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 17:26:57 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 17:27:10 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 17:27:10 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 17:27:10 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:27:10 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:27:10 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:27:10 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:27:10 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 29 for event 4 with 2 participants
+2025-06-28 17:27:10 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 29 for event 4 with 2 participants
+2025-06-28 17:27:11 - bot.cogs.challenge - INFO - Challenge 29 created by 492208498533203970 for event Showdown (OU) (1v1)
+2025-06-28 17:32:38 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 17:32:38 - bot.database.database - INFO - Database connection closed
+2025-06-28 17:32:43 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 17:32:43 - bot.database.database - INFO - Initializing database...
+2025-06-28 17:32:43 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 17:32:43 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 17:32:43 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 17:32:43 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 17:32:43 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 17:32:43 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 17:32:43 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 17:32:43 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 17:32:43 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 17:32:43 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 17:32:43 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 17:32:43 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 17:32:43 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 17:32:43 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 17:32:43 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 17:32:43 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 17:32:46 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 17:32:46 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 17:32:46 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 17:50:44 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created Match 86 from Challenge 29 with 2 participants (1v1)
+2025-06-28 17:50:44 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created Match 86 from Challenge 29 with 2 participants (1v1)
+2025-06-28 17:50:44 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 29 fully accepted - Match 86 created
+2025-06-28 17:50:44 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 29 fully accepted - Match 86 created
+2025-06-28 17:51:54 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 24 partially accepted by player 632154057477455882
+2025-06-28 17:51:54 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 24 partially accepted by player 632154057477455882
+2025-06-28 17:52:02 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 22 partially accepted by player 632154057477455882
+2025-06-28 17:52:02 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 22 partially accepted by player 632154057477455882
+2025-06-28 17:52:43 - bot.operations.player_operations - DEBUG - Found existing Player 3 for Discord user 632154057477455882
+2025-06-28 17:52:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 3
+2025-06-28 17:52:43 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:52:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:52:43 - bot.operations.player_operations - DEBUG - Found existing Player 5 for Discord user 492208498533203970
+2025-06-28 17:52:43 - bot.operations.player_operations - DEBUG - Updated activity for Player 5
+2025-06-28 17:52:43 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 30 for event 6 with 2 participants
+2025-06-28 17:52:43 - bot.operations.challenge_operations.ChallengeOperations - INFO - Created challenge 30 for event 6 with 2 participants
+2025-06-28 17:52:43 - bot.cogs.challenge - INFO - Challenge 30 created by 492208498533203970 for event Showdown (Random) (1v1)
+2025-06-28 17:52:47 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 30 declined by player 632154057477455882
+2025-06-28 17:52:47 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 30 declined by player 632154057477455882
+2025-06-28 17:53:09 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 20 partially accepted by player 358116499140902912
+2025-06-28 17:53:09 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 20 partially accepted by player 358116499140902912
+2025-06-28 17:53:12 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 19 declined by player 358116499140902912
+2025-06-28 17:53:12 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 19 declined by player 358116499140902912
+2025-06-28 17:53:16 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 18 declined by player 358116499140902912
+2025-06-28 17:53:16 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 18 declined by player 358116499140902912
+2025-06-28 17:53:19 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 13 declined by player 358116499140902912
+2025-06-28 17:53:19 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 13 declined by player 358116499140902912
+2025-06-28 17:53:23 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 4 declined by player 358116499140902912
+2025-06-28 17:53:23 - bot.operations.challenge_operations.ChallengeOperations - INFO - Challenge 4 declined by player 358116499140902912
+2025-06-28 18:11:57 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 18:11:57 - bot.database.database - INFO - Database connection closed
+2025-06-28 18:12:01 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 18:12:01 - bot.database.database - INFO - Initializing database...
+2025-06-28 18:12:01 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 18:12:01 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 18:12:01 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 18:12:01 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 18:12:02 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 18:12:02 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 18:12:02 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 18:12:02 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 18:12:02 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 18:12:02 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 18:12:02 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 18:12:02 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 18:12:02 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 18:12:02 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 18:12:02 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 18:12:02 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 18:12:02 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 18:12:02 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 18:12:02 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 18:12:02 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 18:12:02 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 18:12:02 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 18:12:04 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 18:12:04 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 18:12:04 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 18:13:08 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 18:13:08 - bot.database.database - INFO - Database connection closed
+2025-06-28 18:13:26 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 18:13:26 - bot.database.database - INFO - Initializing database...
+2025-06-28 18:13:26 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 18:13:26 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 18:13:26 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 18:13:27 - __main__ - INFO - Successfully synced 9 command(s) to guild 743306931522764860
+2025-06-28 18:13:27 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 18:13:27 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 18:13:27 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 18:13:27 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 18:13:27 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 18:13:27 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 18:13:27 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 18:13:27 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 18:13:27 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 18:13:27 - __main__ - INFO - Successfully synced 9 command(s) to guild 685704304983932949
+2025-06-28 18:13:27 - __main__ - INFO - Multi-guild sync complete: 18 total command instances deployed
+2025-06-28 18:13:27 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 18:13:31 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 18:13:31 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 18:13:31 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 18:20:24 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 18:20:24 - bot.database.database - INFO - Database connection closed
+2025-06-28 18:20:29 - __main__ - INFO - Setting up Tournament Bot...
+2025-06-28 18:20:29 - bot.database.database - INFO - Initializing database...
+2025-06-28 18:20:29 - bot.database.database - INFO - Database initialized successfully
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.admin
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.tournament
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.player
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.challenge
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.leaderboard
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.events
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.match_commands
+2025-06-28 18:20:29 - __main__ - INFO - Loaded cog: bot.cogs.housekeeping
+2025-06-28 18:20:29 - __main__ - INFO - Attempting to sync commands to 2 guild(s): [743306931522764860, 685704304983932949]...
+2025-06-28 18:20:29 - __main__ - INFO - Successfully synced 11 command(s) to guild 743306931522764860
+2025-06-28 18:20:29 - __main__ - INFO -   - admin-populate-data: Load/refresh clusters and events from CSV (Owner only)
+2025-06-28 18:20:29 - __main__ - INFO -   - list-clusters: View all tournament clusters
+2025-06-28 18:20:29 - __main__ - INFO -   - list-events: View events with interactive filtering and pagination
+2025-06-28 18:20:29 - __main__ - INFO -   - challenge: Create a match challenge through tournament hierarchy
+2025-06-28 18:20:29 - __main__ - INFO -   - accept: Accept a pending challenge invitation
+2025-06-28 18:20:29 - __main__ - INFO -   - decline: Decline a pending challenge invitation
+2025-06-28 18:20:29 - __main__ - INFO -   - ping: Test slash command infrastructure
+2025-06-28 18:20:29 - __main__ - INFO -   - ffa: [DEPRECATED] Use /challenge command instead
+2025-06-28 18:20:29 - __main__ - INFO -   - match-report: Report match results with placements
+2025-06-28 18:20:29 - __main__ - INFO -   - admin-cleanup-challenges: Clean up expired challenges (Owner only)
+2025-06-28 18:20:29 - __main__ - INFO -   - admin-clear-challenges: Clear ALL active challenges (Owner only - DESTRUCTIVE)
+2025-06-28 18:20:29 - __main__ - INFO - Successfully synced 11 command(s) to guild 685704304983932949
+2025-06-28 18:20:29 - __main__ - INFO - Multi-guild sync complete: 22 total command instances deployed
+2025-06-28 18:20:29 - __main__ - INFO - Tournament Bot setup complete!
+2025-06-28 18:20:33 - __main__ - INFO - Kenjaku#5319 has connected to Discord!
+2025-06-28 18:20:33 - __main__ - INFO - Bot is in 2 guilds
+2025-06-28 18:20:33 - bot.cogs.challenge - INFO - ChallengeCog operations initialized successfully
+2025-06-28 18:20:33 - bot.cogs.housekeeping - INFO - HousekeepingCog: Background tasks started
+2025-06-28 18:20:33 - bot.operations.challenge_operations.ChallengeOperations - INFO - Expired challenge 1
+2025-06-28 18:20:33 - bot.operations.challenge_operations.ChallengeOperations - INFO - Expired challenge 1
+2025-06-28 18:20:33 - bot.operations.challenge_operations.ChallengeOperations - INFO - Expired challenge 2
+2025-06-28 18:20:33 - bot.operations.challenge_operations.ChallengeOperations - INFO - Expired challenge 2
+2025-06-28 18:20:33 - bot.cogs.housekeeping - INFO - Cleaned up 2 expired challenges
+2025-06-28 18:20:44 - bot.cogs.housekeeping - INFO - Admin cleanup executed by 492208498533203970 (lightfalcon): 0 challenges cleaned
+2025-06-28 18:21:11 - bot.operations.challenge_operations.ChallengeOperations - INFO - Deleted batch of 21 pending challenges (total 21 for this status)
+2025-06-28 18:21:11 - bot.operations.challenge_operations.ChallengeOperations - INFO - Deleted batch of 21 pending challenges (total 21 for this status)
+2025-06-28 18:21:11 - bot.cogs.housekeeping - INFO - Admin clear executed by 492208498533203970 (lightfalcon): {'total_deleted': 21, 'errors': 0, 'pending_count': 21, 'accepted_count': 0}
+2025-06-28 18:21:19 - __main__ - INFO - Shutting down Tournament Bot...
+2025-06-28 18:21:19 - bot.database.database - INFO - Database connection closed
+2025-06-28 18:21:19 - bot.cogs.housekeeping - INFO - HousekeepingCog: Background tasks stopped

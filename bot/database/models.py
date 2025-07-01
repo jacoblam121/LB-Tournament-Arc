@@ -98,6 +98,9 @@ class Player(Base):
     current_streak = Column(Integer, default=0)               # Current win/loss streak
     max_streak = Column(Integer, default=0)                   # Highest win streak achieved
     
+    # Notification preferences
+    dm_challenge_notifications = Column(Boolean, default=False)  # Opt-in for challenge cancellation DMs
+    
     # Metadata
     registered_at = Column(DateTime, default=func.now())
     last_active = Column(DateTime, default=func.now())

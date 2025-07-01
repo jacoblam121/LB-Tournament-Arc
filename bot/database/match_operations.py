@@ -22,7 +22,7 @@ from typing import List, Dict, Optional, Tuple, Union
 from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from sqlalchemy import select, update, and_, or_, delete as sql_delete, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -536,6 +536,82 @@ class MatchOperations:
                 .limit(limit)
             )
             return list(result.scalars().all())
+    
+    async def get_active_matches_for_player(
+        self, 
+        player_discord_id: int, 
+        limit: Optional[int] = None
+    ) -> List[Match]:
+        """
+        Get all active matches for a player (Phase 2.4.4).
+        
+        Active matches include:
+        - PENDING: Match created, waiting to start
+        - ACTIVE: Match in progress  
+        - AWAITING_CONFIRMATION: Results submitted, awaiting confirmation
+        
+        Performance optimized with:
+        - Composite database indexes (player_id, match_id) and (status, id)
+        - Eager loading to prevent N+1 queries
+        - Optional limit for Discord embed field constraints
+        
+        Args:
+            player_discord_id: Discord ID of the player
+            limit: Maximum number of matches to return (recommended: 25 for Discord embeds)
+            
+        Returns:
+            List of active Match records ordered by most recent first
+        """
+        # Define active statuses
+        ACTIVE_STATUSES = [
+            MatchStatus.PENDING,
+            MatchStatus.ACTIVE, 
+            MatchStatus.AWAITING_CONFIRMATION
+        ]
+        
+        async with self.db.get_session() as session:
+            # First get the player to ensure they exist
+            player_stmt = select(Player).where(Player.discord_id == player_discord_id)
+            player_result = await session.execute(player_stmt)
+            player = player_result.scalar_one_or_none()
+            
+            if not player:
+                # Return empty list if player not found (graceful handling)
+                return []
+            
+            # Build optimized query with expert-recommended eager loading
+            query = (
+                select(Match)
+                .join(Match.participants)  # Join to MatchParticipant
+                .where(
+                    and_(
+                        MatchParticipant.player_id == player.id,
+                        Match.status.in_(ACTIVE_STATUSES)
+                    )
+                )
+                .options(
+                    # Use joinedload for one-to-one relationships (performance optimized)
+                    joinedload(Match.event).joinedload(Event.cluster),
+                    # Use selectinload for one-to-many relationships (avoids cartesian product)
+                    selectinload(Match.participants).selectinload(MatchParticipant.player)
+                )
+                .order_by(Match.started_at.desc().nulls_last(), Match.created_at.desc())
+                .distinct()  # Ensure no duplicate matches from JOIN
+            )
+            
+            # Apply limit if specified (important for Discord embed constraints)
+            if limit is not None:
+                query = query.limit(limit)
+            
+            result = await session.execute(query)
+            matches = list(result.scalars().unique().all())
+            
+            self.logger.info(
+                f"Retrieved {len(matches)} active matches for player {player_discord_id} "
+                f"(limit: {limit or 'none'})"
+            )
+            
+            return matches
     
     async def validate_match_for_results(self, match: Match) -> bool:
         """
@@ -1394,3 +1470,103 @@ class MatchOperations:
                 await session.rollback()
                 self.logger.error(f"Failed to terminate proposal for Match {match_id}: {e}")
                 raise MatchOperationError(f"Database error terminating proposal for Match {match_id}: {e}")
+    
+    # ============================================================================
+    # Admin Operations - Match Management
+    # ============================================================================
+    
+    async def clear_active_matches(
+        self,
+        statuses: Optional[List[MatchStatus]] = None,
+        batch_size: int = 250
+    ) -> Dict[str, int]:
+        """
+        Delete matches matching specified statuses in batches.
+        
+        Uses FK cascade ("all, delete-orphan") for automatic MatchParticipant deletion.
+        Each batch is processed in its own transaction to avoid long locks.
+        
+        Args:
+            statuses: List of match statuses to delete (default: PENDING, ACTIVE, AWAITING_CONFIRMATION)
+            batch_size: Number of matches to process per batch
+            
+        Returns:
+            Dictionary with status counts and error information
+        """
+        from sqlalchemy import func, delete
+        
+        if statuses is None:
+            statuses = [MatchStatus.PENDING, MatchStatus.ACTIVE, MatchStatus.AWAITING_CONFIRMATION]
+        
+        results = {'total_deleted': 0, 'errors': 0}
+        
+        # Pre-count matches by status using database count
+        async with self.db.get_session() as session:
+            for status in statuses:
+                count_stmt = select(func.count(Match.id)).where(Match.status == status)
+                status_count = await session.scalar(count_stmt) or 0
+                results[f'{status.value}_count'] = status_count
+        
+        # Process deletions in batches, each in its own transaction
+        for status in statuses:
+            processed_in_status = 0
+            while True:
+                try:
+                    async with self.db.transaction() as session:
+                        # Get batch of match IDs to delete
+                        batch_stmt = (
+                            select(Match.id)
+                            .where(Match.status == status)
+                            .limit(batch_size)
+                        )
+                        match_ids = (await session.execute(batch_stmt)).scalars().all()
+                        
+                        if not match_ids:
+                            break  # No more matches for this status
+                        
+                        # Bulk delete matches (participants deleted via FK cascade)
+                        delete_matches_stmt = delete(Match).where(Match.id.in_(match_ids))
+                        await session.execute(delete_matches_stmt)
+                        
+                        # Transaction commits automatically when exiting this block
+                        
+                        batch_count = len(match_ids)
+                        processed_in_status += batch_count
+                        results['total_deleted'] += batch_count
+                        
+                        self.logger.info(
+                            f"Deleted batch of {batch_count} {status.value} matches "
+                            f"(total {processed_in_status} for this status)"
+                        )
+                        
+                except Exception as e:
+                    results['errors'] += 1
+                    self.logger.error(f"Error processing batch of {status.value} matches: {e}", exc_info=True)
+                    # Stop processing this status on error to prevent infinite loops
+                    break
+        
+        return results
+    
+    async def delete_match_by_id(self, match_id: int) -> bool:
+        """
+        Delete a single match by its ID.
+        
+        Uses FK cascade to automatically delete associated MatchParticipant records.
+        
+        Args:
+            match_id: ID of the match to delete
+            
+        Returns:
+            True if match was deleted, False if match not found
+        """
+        async with self.db.get_session() as session:
+            async with session.begin():
+                match = await session.get(Match, match_id)
+                if not match:
+                    return False
+                
+                # The cascade="all, delete-orphan" on the relationship will handle participants
+                await session.delete(match)
+                
+                self.logger.info(f"Admin deleted Match {match_id}")
+                return True

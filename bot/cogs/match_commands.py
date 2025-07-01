@@ -1401,6 +1401,135 @@ class MatchCommandsCog(commands.Cog):
             await asyncio.sleep(10)
             await processing_message.delete()
     
+    @commands.hybrid_command(name='active-matches', description="View your ongoing matches")
+    async def active_matches(self, ctx):
+        """
+        Display all active matches where you are a participant.
+        
+        Shows matches with status:
+        - PENDING: Match created, waiting to start
+        - ACTIVE: Match in progress
+        - AWAITING_CONFIRMATION: Results submitted, awaiting confirmation
+        
+        Phase 2.4.4 Implementation with performance optimizations
+        """
+        
+        # Handle both slash and prefix commands
+        if isinstance(ctx, discord.Interaction):
+            # Slash command - defer response since we'll be doing database queries
+            await ctx.response.defer()
+            user = ctx.user
+            send_func = ctx.followup.send
+        else:
+            # Prefix command (Context)
+            user = ctx.author
+            send_func = ctx.send
+        
+        # Validate match operations available
+        if not self.match_ops:
+            embed = discord.Embed(
+                title="❌ Match System Unavailable",
+                description="Match operations are not initialized. Please try again later.",
+                color=discord.Color.red()
+            )
+            await send_func(embed=embed, ephemeral=True if isinstance(ctx, discord.Interaction) else False)
+            return
+        
+        try:
+            # Query active matches with Discord embed limit (25 fields max)
+            matches = await self.match_ops.get_active_matches_for_player(
+                player_discord_id=user.id,
+                limit=25  # Discord embed field limit
+            )
+            
+            # Create response embed
+            embed = self._create_active_matches_embed(matches, user)
+            await send_func(embed=embed)
+            
+        except Exception as e:
+            self.logger.error(f"Error in active-matches command: {e}", exc_info=True)
+            
+            error_embed = discord.Embed(
+                title="❌ Error Loading Active Matches",
+                description="An error occurred while retrieving your active matches. Please try again later.",
+                color=discord.Color.red()
+            )
+            await send_func(embed=error_embed, ephemeral=True if isinstance(ctx, discord.Interaction) else False)
+    
+    def _create_active_matches_embed(self, matches: List[Match], user: discord.User) -> discord.Embed:
+        """
+        Create an embed displaying active matches with expert-validated UX design.
+        
+        Handles Discord's 25-field embed limit and provides status-specific action hints.
+        
+        Args:
+            matches: List of active Match objects (already limited to ≤25)
+            user: Discord user to highlight in participant lists
+            
+        Returns:
+            Formatted Discord embed
+        """
+        embed = discord.Embed(
+            title="🎮 Your Active Matches",
+            color=discord.Color.blue()
+        )
+        embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+        
+        if not matches:
+            embed.description = "You have no active matches at the moment."
+            embed.add_field(
+                name="💡 Start a Match",
+                value="Use `/challenge` to invite players to a new match!",
+                inline=False
+            )
+            embed.color = discord.Color.greyple()
+            return embed
+        
+        # Show match count
+        embed.description = f"You have {len(matches)} active match{'es' if len(matches) != 1 else ''}."
+        
+        for match in matches:
+            # Get status emoji
+            status_emoji = {
+                MatchStatus.PENDING: "⏳",
+                MatchStatus.ACTIVE: "⚔️", 
+                MatchStatus.AWAITING_CONFIRMATION: "⚖️"
+            }.get(match.status, "❓")
+            
+            # Build compact participant list
+            participant_names = []
+            for p in match.participants[:3]:  # Show first 3 participants
+                if p.player is None:
+                    participant_names.append("Unknown")
+                    continue
+                name = p.player.username or p.player.display_name or f"Player{p.player.id}"
+                if p.player.discord_id == user.id:
+                    name = f"**{name}**"  # Bold the current user
+                participant_names.append(name)
+            
+            if len(match.participants) > 3:
+                participant_names.append(f"+{len(match.participants)-3} more")
+            
+            participants_text = ", ".join(participant_names)
+            
+            # Build compact location
+            if match.event and match.event.cluster:
+                location = f"{match.event.cluster.name} → {match.event.name}"
+            elif match.event:
+                location = match.event.name
+            else:
+                location = "Unknown Event"
+            
+            # Simple field format
+            embed.add_field(
+                name=f"{status_emoji} Match {match.id} • {match.match_format.value.upper()}",
+                value=f"**{location}**\n{participants_text}",
+                inline=False
+            )
+        
+        embed.set_footer(text="💡 Match IDs are needed for reporting results")
+        return embed
+    
     @commands.command(name='match-help')
     async def match_help(self, ctx):
         """Show available match commands and their status"""

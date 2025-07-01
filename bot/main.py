@@ -56,7 +56,8 @@ class TournamentBot(commands.Bot):
             'bot.cogs.challenge',
             'bot.cogs.leaderboard',
             'bot.cogs.events',
-            'bot.cogs.match_commands'
+            'bot.cogs.match_commands',
+            'bot.cogs.housekeeping'
         ]
         
         for cog in cogs_to_load:
