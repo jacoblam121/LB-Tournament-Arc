@@ -664,7 +664,7 @@ class Database:
             query = select(
                 Event.base_event_name,
                 func.count(Event.id).label('variation_count'),
-                func.group_concat(Event.scoring_type, ', ').label('scoring_types'),
+                func.group_concat(Event.supported_scoring_types, ', ').label('scoring_types'),
                 func.min(Event.id).label('primary_event_id'),
                 Event.cluster_id
             ).group_by(Event.base_event_name, Event.cluster_id)

@@ -711,7 +711,7 @@ class ChallengeCog(commands.Cog):
     def _create_match_ready_embed(self, match, challenge: Challenge) -> discord.Embed:
         """Create embed when all participants accept and match is created"""
         embed = discord.Embed(
-            title="🎮 Match Ready!",
+            title="Match Ready!",
             description=f"All participants accepted - Match #{match.id} created",
             color=discord.Color.green(),
             timestamp=datetime.now(timezone.utc)
@@ -752,7 +752,7 @@ class ChallengeCog(commands.Cog):
         
         embed.add_field(
             name="Next Steps",
-            value="Play your match and report results using `/match_result`",
+            value="Play your match and report results using `/match-report`",
             inline=False
         )
         
@@ -1326,7 +1326,7 @@ class ChallengeCog(commands.Cog):
             if show_accept_hint:
                 footer_text += " | Use /accept to respond"
             elif show_match_hint:
-                footer_text += " | Use /match_result to report results"
+                footer_text += " | Use /match-report to report results"
             
             embed.set_footer(text=footer_text)
             embeds.append(embed)
@@ -1341,10 +1341,23 @@ class ChallengeCog(commands.Cog):
         """Format a challenge summary for list display"""
         lines = []
         
-        # Location info with cluster, event, and type
-        cluster_name = challenge.event.cluster.name if challenge.event.cluster else "Unknown"
-        scoring_type = challenge.event.scoring_type or "Unknown"
-        lines.append(f"**Location:** {cluster_name} → {challenge.event.name} → {scoring_type.upper()}")
+        # Determine match type from participants and team assignments
+        participant_count = len(challenge.participants) if challenge.participants else 0
+        has_teams = any(p.team_id for p in challenge.participants) if challenge.participants else False
+        
+        if participant_count == 2:
+            match_type = "1V1"
+        elif has_teams:
+            match_type = "TEAM"
+        elif participant_count > 2:
+            match_type = "FFA"
+        else:
+            match_type = "UNKNOWN"  # Fallback for edge cases
+        
+        # Location info with inferred match type
+        cluster_name = challenge.event.cluster.name if challenge.event and challenge.event.cluster else "Unknown"
+        event_name = challenge.event.name if challenge.event else "Unknown"
+        lines.append(f"**Location:** {cluster_name} → {event_name} → {match_type}")
         
         # Status with emoji
         status_emoji = {

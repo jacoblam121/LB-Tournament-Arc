@@ -89,24 +89,9 @@ def parse_scoring_types(scoring_type_str: str) -> List[str]:
     return list(dict.fromkeys(normalized_types))
 
 
-def create_event_name_with_suffix(base_name: str, scoring_type: str, is_duplicate: bool = False) -> str:
-    """
-    Create event name with appropriate suffix for clarity.
-    
-    Args:
-        base_name: Base event name from CSV
-        scoring_type: Normalized scoring type
-        is_duplicate: True if this is not the first event with this base name
-        
-    Returns:
-        Event name with suffix if needed
-    """
-    if not is_duplicate and scoring_type in ['1v1', 'FFA']:
-        # For single events that are common types, no suffix needed
-        return base_name
-    
-    # Always add suffix for mixed events or team events
-    return f"{base_name} ({scoring_type})"
+# Legacy function removed - no longer needed for unified events
+# Previously: create_event_name_with_suffix() created "Game (1v1)" style names
+# Now: Events use unified names like "Game" with supported_scoring_types field
 
 
 def infer_score_direction(event_name: str, notes: str = "") -> Optional[str]:
@@ -314,7 +299,7 @@ async def populate_clusters_and_events(csv_path: str = "LB Culling Games List.cs
                     name=event_name,  # Unified name
                     base_event_name=event_name,  # Same as name for unified events
                     cluster_id=current_cluster.id,
-                    scoring_type=primary_scoring_type,  # DEPRECATED: Will be moved to Match level
+                    # scoring_type removed - DEPRECATED field, moved to Match level
                     supported_scoring_types=','.join(all_scoring_types),  # Complete list!
                     score_direction=score_direction,
                     crownslayer_pool=300,

@@ -126,7 +126,7 @@ class EventBrowserView(discord.ui.View):
                 
                 # Apply event type filtering if set
                 if self.current_filter:
-                    events = [e for e in events if e.scoring_type == self.current_filter]
+                    events = [e for e in events if self.current_filter in (e.supported_scoring_types or '').split(',')]
                 
                 # Calculate pagination
                 total_events = len(events)
@@ -187,18 +187,38 @@ class EventBrowserView(discord.ui.View):
                     variations = item['variation_count']
                     scoring_types = item['scoring_types']
                     
+                    # Gracefully handle empty or None scoring_types and parse into a clean list
+                    types_list = []
+                    if scoring_types:
+                        # Split by comma, strip whitespace, and filter out any empty strings.
+                        # This correctly handles variations like "1v1, FFA" or "1v1,,FFA".
+                        types_list = [t.strip() for t in scoring_types.split(',') if t.strip()]
+
+                    actual_type_count = len(types_list)
+                    # Create a consistently formatted string for display, e.g., "1v1, FFA, Team"
+                    formatted_types = ", ".join(types_list)
+
+                    # Format display based on the number of types
+                    if actual_type_count > 1:
+                        type_display = f"{actual_type_count} modes: {formatted_types} in {cluster_name}"
+                    elif actual_type_count == 1:
+                        type_display = f"{formatted_types} in {cluster_name}"
+                    else: # Handles the case of 0 types
+                        # Provides a clean fallback if no scoring types are defined for an event.
+                        type_display = f"Modes TBD in {cluster_name}"
+                    
                     if self.is_owner:
                         # For aggregated view, show green if any variation is active
                         # (would need to query for this, so defaulting to green for now)
                         status = "🟢"
                         event_lines.append(
                             f"{status} **{event_number}.** {base_name}\n"
-                            f"   └ {variations} variation{'s' if variations > 1 else ''}: {scoring_types} in {cluster_name}"
+                            f"   └ {type_display}"
                         )
                     else:
                         event_lines.append(
                             f"**{event_number}.** {base_name}\n"
-                            f"   └ {variations} variation{'s' if variations > 1 else ''}: {scoring_types} in {cluster_name}"
+                            f"   └ {type_display}"
                         )
                 else:
                     # Original view mode
@@ -206,14 +226,14 @@ class EventBrowserView(discord.ui.View):
                     if self.is_owner:
                         status = "🟢" if event.is_active else "🔴"
                         cluster_name = event.cluster.name if event.cluster else "Unknown"
-                        scoring_display = event.scoring_type or "TBD"
+                        scoring_display = event.supported_scoring_types or "TBD"
                         event_lines.append(
                             f"{status} **{event_number}.** {event.name}\n"
                             f"   └ {scoring_display} in {cluster_name}"
                         )
                     else:
                         cluster_name = event.cluster.name if event.cluster else "Unknown" 
-                        scoring_display = event.scoring_type or "TBD"
+                        scoring_display = event.supported_scoring_types or "TBD"
                         event_lines.append(
                             f"**{event_number}.** {event.name}\n"
                             f"   └ {scoring_display} in {cluster_name}"

@@ -30,7 +30,8 @@ from bot.database.models import (
     Match, MatchParticipant, MatchStatus, MatchFormat,
     Challenge, ChallengeStatus, MatchResult,
     Player, Event, EloHistory,
-    ConfirmationStatus, MatchResultProposal, MatchConfirmation  # Phase B
+    ConfirmationStatus, MatchResultProposal, MatchConfirmation,  # Phase B
+    ChallengeRole, ChallengeParticipant  # Added for N-player support
 )
 from bot.utils.scoring_strategies import (
     ScoringStrategy, ParticipantResult, ScoringResult,
@@ -931,9 +932,12 @@ class MatchOperations:
         if not match.challenge_id or match.match_format != MatchFormat.ONE_V_ONE:
             return  # Only sync 1v1 matches from Challenges
         
-        # Get Challenge
+        # Get Challenge with participants eagerly loaded, using row lock for safety
         result = await session.execute(
-            select(Challenge).where(Challenge.id == match.challenge_id)
+            select(Challenge)
+            .options(selectinload(Challenge.participants))
+            .where(Challenge.id == match.challenge_id)
+            .with_for_update()
         )
         challenge = result.scalar_one_or_none()
         
@@ -941,12 +945,31 @@ class MatchOperations:
             self.logger.warning(f"Challenge {match.challenge_id} not found for Match {match.id}")
             return
         
-        # Get participants sorted by placement
-        participants = sorted(match.participants, key=lambda p: p.placement)
+        # Build role lookup for efficiency, handling potential NULL roles from migration
+        participants_by_role = {}
+        for p in challenge.participants:
+            if p.role is not None:  # Explicit null check for migration compatibility
+                participants_by_role[p.role] = p
         
-        if len(participants) == 2:
-            winner_participant = participants[0]  # placement = 1
-            loser_participant = participants[1]   # placement = 2 (or 1 for tie)
+        challenger_participant = participants_by_role.get(ChallengeRole.CHALLENGER)
+        challenged_participant = participants_by_role.get(ChallengeRole.CHALLENGED)
+        
+        if not challenger_participant or not challenged_participant:
+            self.logger.warning(
+                f"Missing required participants for Challenge {challenge.id}. "
+                f"Found roles: {list(participants_by_role.keys())}"
+            )
+            return
+        
+        challenger_id = challenger_participant.player_id
+        challenged_id = challenged_participant.player_id
+        
+        # Get match participants sorted by placement
+        match_participants = sorted(match.participants, key=lambda p: p.placement)
+        
+        if len(match_participants) == 2:
+            winner_participant = match_participants[0]  # placement = 1
+            loser_participant = match_participants[1]   # placement = 2 (or 1 for tie)
             
             # Handle draws (both have same placement)
             if winner_participant.placement == loser_participant.placement:
@@ -954,19 +977,30 @@ class MatchOperations:
                 challenge.challenged_result = MatchResult.DRAW
             else:
                 # Determine which participant is challenger vs challenged
-                if winner_participant.player_id == challenge.challenger_id:
+                if winner_participant.player_id == challenger_id:
                     challenge.challenger_result = MatchResult.WIN
                     challenge.challenged_result = MatchResult.LOSS
                 else:
                     challenge.challenger_result = MatchResult.LOSS
                     challenge.challenged_result = MatchResult.WIN
             
-            # Update Elo changes (should already be set, but ensure consistency)
-            challenger_participant = next(p for p in participants if p.player_id == challenge.challenger_id)
-            challenged_participant = next(p for p in participants if p.player_id == challenge.challenged_id)
+            # Update Elo changes - find by player_id
+            challenger_match_participant = next(
+                (p for p in match_participants if p.player_id == challenger_id),
+                None
+            )
+            challenged_match_participant = next(
+                (p for p in match_participants if p.player_id == challenged_id),
+                None
+            )
             
-            challenge.challenger_elo_change = challenger_participant.elo_change
-            challenge.challenged_elo_change = challenged_participant.elo_change
+            if challenger_match_participant and challenged_match_participant:
+                challenge.challenger_elo_change = challenger_match_participant.elo_change
+                challenge.challenged_elo_change = challenged_match_participant.elo_change
+            else:
+                self.logger.warning(
+                    f"Could not find match participants for Challenge {challenge.id} sync"
+                )
         
         self.logger.info(f"Synced Match {match.id} results to Challenge {challenge.id}")
     
