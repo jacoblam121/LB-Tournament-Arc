@@ -29,7 +29,8 @@ from sqlalchemy.orm import selectinload
 
 from bot.database.models import (
     Player, Event, Match, MatchParticipant, EloHistory, PlayerEventStats,
-    AdminRole, AdminPermissionLog, MatchUndoLog, UndoMethod, AdminPermissionType, MatchResult
+    AdminRole, AdminPermissionLog, MatchUndoLog, UndoMethod, AdminPermissionType, MatchResult,
+    AdminAuditLog, SeasonSnapshot
 )
 from bot.utils.logger import setup_logger
 from bot.utils.elo import EloCalculator
@@ -88,7 +89,9 @@ class AdminOperations:
         target_type: Optional[str] = None,
         target_id: Optional[int] = None,
         details: Optional[Dict[str, Any]] = None,
-        reason: Optional[str] = None
+        reason: Optional[str] = None,
+        affected_players_count: int = 0,
+        affected_events_count: int = 0
     ) -> None:
         """
         Create comprehensive audit log entry for administrative actions.
@@ -101,15 +104,20 @@ class AdminOperations:
             target_id: ID of target entity
             details: Additional details as JSON
             reason: Admin-provided reason for action
+            affected_players_count: Number of players affected by operation
+            affected_events_count: Number of events affected by operation
         """
         try:
-            # Create audit log entry using AdminPermissionLog as base structure
-            audit_entry = AdminPermissionLog(
+            # Create proper audit log entry using new AdminAuditLog model
+            audit_entry = AdminAuditLog(
                 admin_id=admin_discord_id,
-                permission_type=AdminPermissionType.MODIFY_RATINGS,  # Use appropriate permission type
-                action="granted",  # Will be overridden by reason field
-                performed_by=admin_discord_id,
-                reason=f"ACTION: {action_type} | TARGET: {target_type}:{target_id} | REASON: {reason or 'No reason provided'} | DETAILS: {json.dumps(details or {})}"
+                action_type=action_type,
+                target_type=target_type,
+                target_id=target_id,
+                details=json.dumps(details or {}),
+                reason=reason,
+                affected_players_count=affected_players_count,
+                affected_events_count=affected_events_count
             )
             
             session.add(audit_entry)
@@ -309,7 +317,9 @@ class AdminOperations:
                         'affected_events_count': len(affected_events),
                         'affected_events': affected_events[:5]  # Limit details to first 5 events
                     },
-                    reason
+                    reason,
+                    affected_players_count=1,
+                    affected_events_count=len(affected_events)
                 )
                 
                 # Commit if we manage the session
@@ -470,7 +480,9 @@ class AdminOperations:
                         'backup_created': backup_info is not None,
                         'backup_id': backup_info.get('snapshot_id') if backup_info else None
                     },
-                    reason
+                    reason,
+                    affected_players_count=affected_players,
+                    affected_events_count=affected_events_count
                 )
                 
                 # Commit if we manage the session
@@ -497,38 +509,116 @@ class AdminOperations:
         self,
         session: AsyncSession,
         description: str,
-        admin_discord_id: int
+        admin_discord_id: int,
+        snapshot_type: str = "elo_backup"
     ) -> Dict[str, Any]:
         """
-        Create a snapshot of current season data for backup purposes.
+        Create a comprehensive snapshot of current season data for backup purposes.
         
         Args:
             session: Database session
             description: Description of the snapshot
             admin_discord_id: Admin creating the snapshot
+            snapshot_type: Type of snapshot ("elo_backup", "season_end", "migration")
             
         Returns:
             Dictionary with snapshot information
         """
         try:
-            # This would create a comprehensive backup
-            # For now, we'll create a simple metadata record
-            # TODO: Implement full snapshot creation if season_snapshots table exists
+            # Gather comprehensive tournament state data
             
+            # Get all players with their current stats
+            players_query = select(Player, PlayerEventStats).join(PlayerEventStats, Player.id == PlayerEventStats.player_id)
+            players_result = await session.execute(players_query)
+            players_data = []
+            
+            for player, stats in players_result.all():
+                players_data.append({
+                    'player_id': player.id,
+                    'discord_id': player.discord_id,
+                    'username': player.username,
+                    'event_id': stats.event_id,
+                    'raw_elo': stats.raw_elo,
+                    'scoring_elo': stats.scoring_elo,
+                    'matches_played': stats.matches_played,
+                    'wins': stats.wins,
+                    'losses': stats.losses,
+                    'draws': stats.draws
+                })
+            
+            # Get event summary
+            events_query = select(Event)
+            events_result = await session.execute(events_query)
+            events_data = []
+            
+            for event in events_result.scalars().all():
+                events_data.append({
+                    'event_id': event.id,
+                    'name': event.name,
+                    'cluster_id': event.cluster_id,
+                    'scoring_type': event.scoring_type,
+                    'is_active': event.is_active
+                })
+            
+            # Get match summary (recent matches only for size management)
+            matches_query = select(Match).order_by(Match.created_at.desc()).limit(1000)
+            matches_result = await session.execute(matches_query)
+            matches_data = []
+            
+            for match in matches_result.scalars().all():
+                matches_data.append({
+                    'match_id': match.id,
+                    'event_id': match.event_id,
+                    'match_format': match.match_format.value if match.match_format else None,
+                    'status': match.status.value if match.status else None,
+                    'created_at': match.created_at.isoformat() if match.created_at else None
+                })
+            
+            # Compile comprehensive snapshot data
             snapshot_data = {
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'admin_id': admin_discord_id,
                 'description': description,
-                'type': 'elo_backup'
+                'snapshot_type': snapshot_type,
+                'data': {
+                    'players': players_data,
+                    'events': events_data,
+                    'matches': matches_data[:100]  # Limit matches to keep size manageable
+                },
+                'statistics': {
+                    'total_players': len(players_data),
+                    'total_events': len(events_data),
+                    'total_matches': len(matches_data)
+                }
             }
             
-            # Since season_snapshots table might not exist yet, we'll just log this
-            self.logger.info(f"Season snapshot created: {description} by {admin_discord_id}")
+            # Generate season name
+            season_name = f"{snapshot_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Create SeasonSnapshot record
+            snapshot = SeasonSnapshot(
+                season_name=season_name,
+                snapshot_data=json.dumps(snapshot_data),
+                created_by=admin_discord_id,
+                snapshot_type=snapshot_type,
+                description=description,
+                players_count=len(players_data),
+                events_count=len(events_data),
+                matches_count=len(matches_data)
+            )
+            
+            session.add(snapshot)
+            
+            self.logger.info(f"Season snapshot created: {season_name} by {admin_discord_id} ({len(players_data)} players, {len(events_data)} events)")
             
             return {
-                'snapshot_id': f"snapshot_{int(datetime.now().timestamp())}",
+                'snapshot_id': snapshot.id,
+                'season_name': season_name,
                 'description': description,
-                'timestamp': snapshot_data['timestamp']
+                'timestamp': snapshot_data['timestamp'],
+                'players_count': len(players_data),
+                'events_count': len(events_data),
+                'matches_count': len(matches_data)
             }
             
         except Exception as e:
@@ -670,7 +760,9 @@ class AdminOperations:
                             'affected_players': len(affected_players),
                             'elo_changes': elo_changes[:10]  # Limit details
                         },
-                        reason
+                        reason,
+                        affected_players_count=len(affected_players),
+                        affected_events_count=1
                     )
                     
                     # Commit if we manage the session
@@ -696,3 +788,85 @@ class AdminOperations:
             except Exception as e:
                 self.logger.error(f"Match undo failed: {e}")
                 raise AdminOperationError(f"Match undo operation failed: {e}")
+    
+    async def populate_data_with_audit(
+        self,
+        admin_discord_id: int,
+        reason: Optional[str] = None,
+        csv_path: str = "LB Culling Games List.csv",
+        session: Optional[AsyncSession] = None
+    ) -> Dict[str, Any]:
+        """
+        Populate clusters and events from CSV with comprehensive audit logging.
+        
+        Args:
+            admin_discord_id: Discord ID of admin performing operation
+            reason: Admin-provided reason for data population
+            csv_path: Path to CSV file to import
+            session: Optional database session
+            
+        Returns:
+            Dictionary with population results and audit information
+            
+        Raises:
+            AdminPermissionError: If admin lacks required permissions
+            AdminOperationError: If operation fails
+        """
+        async with self._get_session_context(session) as s:
+            try:
+                # Validate permissions
+                if not await self._validate_admin_permissions(s, admin_discord_id, AdminPermissionType.MODIFY_RATINGS):
+                    raise AdminPermissionError(f"Admin {admin_discord_id} lacks data population permissions")
+                
+                # Import populate function
+                try:
+                    from populate_from_csv import populate_clusters_and_events
+                except ImportError:
+                    raise AdminOperationError("populate_from_csv module not available")
+                
+                # Execute the population operation with shared session
+                self.logger.info(f"Starting CSV data population by admin {admin_discord_id}")
+                populate_results = await populate_clusters_and_events(
+                    csv_path=csv_path,
+                    session=s,
+                    db_instance=self.db
+                )
+                
+                # Create audit log entry
+                await self._create_audit_log(
+                    s,
+                    admin_discord_id,
+                    "data_populate",
+                    "global",
+                    None,  # No specific target ID for global operation
+                    {
+                        'csv_path': csv_path,
+                        'clusters_created': populate_results.get('clusters_created', 0),
+                        'events_created': populate_results.get('events_created', 0),
+                        'events_skipped': populate_results.get('events_skipped', 0)
+                    },
+                    reason,
+                    affected_players_count=0,  # Data population doesn't directly affect players
+                    affected_events_count=populate_results.get('events_created', 0)
+                )
+                
+                # Commit if we manage the session
+                if not session:
+                    await s.commit()
+                
+                self.logger.info(f"CSV data population completed by admin {admin_discord_id}: {populate_results}")
+                
+                return {
+                    'success': True,
+                    'populate_results': populate_results,
+                    'clusters_created': populate_results.get('clusters_created', 0),
+                    'events_created': populate_results.get('events_created', 0),
+                    'events_skipped': populate_results.get('events_skipped', 0),
+                    'audit_logged': True
+                }
+                
+            except (AdminPermissionError, AdminValidationError):
+                raise
+            except Exception as e:
+                self.logger.error(f"Data population failed: {e}")
+                raise AdminOperationError(f"Data population operation failed: {e}")

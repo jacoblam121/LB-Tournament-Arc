@@ -24,7 +24,7 @@ Cluster Number,Cluster,Game Mode,Scoring Type,Notes
 ,,Diep,1v1/Team/FFA,
 ,,Paper,FFA,
 8,Rhythm,Osu std,1v1/FFA,
-,,Quaver,1v1,
+,,Quaver,1v1/FFA,
 9,Fighting,Brawhalla,1v1/Team,team is 2v2 only
 ,,Tough Love Arena,1v1,
 ,,Super Smash Flash 2,1v1,
@@ -35,6 +35,7 @@ Cluster Number,Cluster,Game Mode,Scoring Type,Notes
 ,,Skywars,FFA,
 ,,Party Games,FFA,
 ,,Parkour,Leaderboard,
+,,Turbo Kart Racers,1v1/FFA,
 11,Running,40 yd dash,Leaderboard,
 ,,1 mi run,Leaderboard,
 ,,1x400 run,Leaderboard,
@@ -58,7 +59,7 @@ Cluster Number,Cluster,Game Mode,Scoring Type,Notes
 ,,Spelling Bee,Leaderboard,completion time (no error checking/google search)
 17,Elementary Classics,[2048],Leaderboard,
 ,,NitroType,1v1/FFA,
-,,Fireboy and Watergirl,1v1,completion time
+,,Fireboy and Watergirl,Leaderboard,completion time
 ,,Winnie the Pooh Home Run Derby,Leaderboard,christopher robin any%
 18,Party Games,Overcooked 2,Team,team is 2v2 only
 ,,Stumble Guys,FFA,

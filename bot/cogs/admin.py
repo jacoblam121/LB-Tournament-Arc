@@ -64,7 +64,7 @@ class AdminCog(commands.Cog):
             await ctx.send(f"❌ Error getting database stats: {e}")
     
     @commands.hybrid_command(name='admin-populate-data')
-    async def populate_data(self, ctx):
+    async def populate_data(self, ctx, *, reason: str = None):
         """Load/refresh clusters and events from CSV (Owner only)"""
         try:
             # Send initial response
@@ -75,12 +75,14 @@ class AdminCog(commands.Cog):
             )
             await ctx.send(embed=embed)
             
-            # Import and run population
+            # Use AdminOperations for proper audit logging
             try:
-                from populate_from_csv import populate_clusters_and_events
-                results = await populate_clusters_and_events()
+                results = await self.admin_ops.populate_data_with_audit(
+                    admin_discord_id=ctx.author.id,
+                    reason=reason
+                )
                 
-                # Success response
+                # Success response with audit confirmation
                 embed = discord.Embed(
                     title="✅ CSV Population Completed",
                     color=discord.Color.green()
@@ -88,6 +90,10 @@ class AdminCog(commands.Cog):
                 embed.add_field(name="Clusters Created", value=results['clusters_created'], inline=True)
                 embed.add_field(name="Events Created", value=results['events_created'], inline=True)
                 embed.add_field(name="Events Skipped", value=results['events_skipped'], inline=True)
+                embed.add_field(name="Audit Logged", value="✅ Yes", inline=True)
+                
+                if reason:
+                    embed.add_field(name="Reason", value=reason, inline=False)
                 
                 await ctx.send(embed=embed)
                 
@@ -97,8 +103,8 @@ class AdminCog(commands.Cog):
                     await self.bot.db.import_clusters_and_events_from_csv(session, clear_existing=True)
                 
                 embed = discord.Embed(
-                    title="✅ CSV Import Completed (Basic)",
-                    description="Used fallback import method. Check logs for details.",
+                    title="⚠️ CSV Import Completed (Basic)",
+                    description="Used fallback import method. Check logs for details.\n**Warning: No audit log created for fallback method.**",
                     color=discord.Color.orange()
                 )
                 await ctx.send(embed=embed)

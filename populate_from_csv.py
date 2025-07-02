@@ -13,7 +13,10 @@ import sys
 import csv
 import asyncio
 import logging
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from collections import defaultdict
 
@@ -121,32 +124,146 @@ def infer_score_direction(event_name: str, notes: str = "") -> Optional[str]:
     return "HIGH"
 
 
-async def clear_existing_data(db: Database) -> None:
+async def _create_database_records(
+    session,
+    event_data_agg: dict,
+    clusters_created: dict,
+    events_created: int,
+    logger
+) -> int:
+    """
+    Helper function to create database records from aggregated event data.
+    
+    Args:
+        session: Database session to use
+        event_data_agg: Aggregated event data
+        clusters_created: Dictionary to track created clusters
+        events_created: Current count of events created
+        logger: Logger instance
+        
+    Returns:
+        Updated events_created count
+    """
+    # Create clusters first
+    for event_key, event_data in event_data_agg.items():
+        cluster_key, event_name = event_key
+        cluster_num, cluster_name = cluster_key
+        
+        # Create cluster if not exists
+        if cluster_num not in clusters_created:
+            cluster = Cluster(
+                number=cluster_num,
+                name=cluster_name,
+                is_active=True
+            )
+            session.add(cluster)
+            await session.flush()  # Get the ID
+            clusters_created[cluster_num] = cluster
+            logger.info(f"Created cluster {cluster_num}: {cluster_name}")
+        
+        current_cluster = clusters_created[cluster_num]
+        
+        # Check if event already exists
+        existing_event = await session.execute(
+            select(Event).where(
+                Event.cluster_id == current_cluster.id,
+                Event.name == event_name
+            )
+        )
+        existing_event = existing_event.scalar_one_or_none()
+        
+        if existing_event:
+            logger.debug(f"Event '{event_name}' already exists in cluster '{cluster_name}'")
+            continue
+        
+        # Get all unique scoring types (sorted for consistency)
+        all_scoring_types = sorted(list(event_data['scoring_types']))
+        
+        # Determine player limits based on all supported scoring types
+        min_players = 2  # Minimum for any match type
+        max_players = 16  # Maximum to support FFA
+        
+        # If only 1v1 is supported, use more restrictive limits
+        if all_scoring_types == ['1v1']:
+            min_players, max_players = 2, 2
+        elif 'Team' in all_scoring_types and 'FFA' not in all_scoring_types:
+            # Team only or Team + 1v1
+            min_players, max_players = 2, 10
+        
+        # Infer score direction for leaderboard events
+        score_direction = None
+        if 'Leaderboard' in all_scoring_types:
+            # Use first available notes for inference
+            first_notes = event_data['notes'][0] if event_data['notes'] else ''
+            score_direction = infer_score_direction(event_name, first_notes)
+        
+        # Create unified event with complete supported_scoring_types
+        event = Event(
+            name=event_name,  # Unified name
+            base_event_name=event_name,  # Same as name for unified events
+            cluster_id=current_cluster.id,
+            # scoring_type removed - DEPRECATED field, moved to Match level
+            supported_scoring_types=','.join(all_scoring_types),  # Complete list!
+            score_direction=score_direction,
+            crownslayer_pool=300,
+            is_active=True,
+            allow_challenges=True,
+            min_players=min_players,
+            max_players=max_players
+        )
+        
+        session.add(event)
+        events_created += 1
+        
+        logger.debug(
+            f"Created unified event: {event_name} "
+            f"(supports: {','.join(all_scoring_types)}, cluster: {cluster_name})"
+            f"{f', direction: {score_direction}' if score_direction else ''}"
+        )
+    
+    return events_created
+
+
+async def clear_existing_data(db: Database, session=None) -> None:
     """
     Clear all existing clusters and events for a clean import.
     
     Args:
         db: Database instance
+        session: Optional existing session to use
     """
     logger = logging.getLogger(__name__)
     logger.info("Clearing existing clusters and events...")
     
-    async with db.transaction() as session:
-        # Delete events first (foreign key constraint)
+    if session:
+        # Use provided session
         from sqlalchemy import delete
         await session.execute(delete(Event))
         await session.execute(delete(Cluster))
         await session.flush()
+    else:
+        # Create our own transaction
+        async with db.transaction() as new_session:
+            from sqlalchemy import delete
+            await new_session.execute(delete(Event))
+            await new_session.execute(delete(Cluster))
+            await new_session.flush()
     
     logger.info("Existing data cleared successfully")
 
 
-async def populate_clusters_and_events(csv_path: str = "LB Culling Games List.csv") -> Dict[str, int]:
+async def populate_clusters_and_events(
+    csv_path: str = "LB Culling Games List.csv",
+    session: Optional["AsyncSession"] = None,
+    db_instance: Optional[Database] = None
+) -> Dict[str, int]:
     """
     Main population function that reads CSV and creates database records.
     
     Args:
         csv_path: Path to the CSV file
+        session: Optional existing database session for atomic operations
+        db_instance: Optional existing database instance
         
     Returns:
         Dictionary with counts of created records
@@ -156,12 +273,23 @@ async def populate_clusters_and_events(csv_path: str = "LB Culling Games List.cs
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     
-    # Initialize database
-    db = Database()
-    await db.initialize()
+    # Use provided database instance or create new one
+    if db_instance:
+        db = db_instance
+        own_db = False
+    else:
+        # Initialize database only if not provided
+        db = Database()
+        await db.initialize()
+        own_db = True
     
-    # Clear existing data
-    await clear_existing_data(db)
+    # Clear existing data - use provided session if available for atomicity
+    if session:
+        # Use provided session for atomic data clearing
+        await clear_existing_data(db, session)
+    elif own_db:
+        # Create our own transaction for data clearing
+        await clear_existing_data(db)
     
     # Track created records
     clusters_created = {}
@@ -239,93 +367,23 @@ async def populate_clusters_and_events(csv_path: str = "LB Culling Games List.cs
         # Pass 2: Create database records from aggregated data
         logger.info("Pass 2: Creating unified events in database...")
         
-        async with db.transaction() as session:
-            # Create clusters first
-            for event_key, event_data in event_data_agg.items():
-                cluster_key, event_name = event_key
-                cluster_num, cluster_name = cluster_key
-                
-                # Create cluster if not exists
-                if cluster_num not in clusters_created:
-                    cluster = Cluster(
-                        number=cluster_num,
-                        name=cluster_name,
-                        is_active=True
-                    )
-                    session.add(cluster)
-                    await session.flush()  # Get the ID
-                    clusters_created[cluster_num] = cluster
-                    logger.info(f"Created cluster {cluster_num}: {cluster_name}")
-                
-                current_cluster = clusters_created[cluster_num]
-                
-                # Check if event already exists
-                existing_event = await session.execute(
-                    select(Event).where(
-                        Event.cluster_id == current_cluster.id,
-                        Event.name == event_name
-                    )
-                )
-                existing_event = existing_event.scalar_one_or_none()
-                
-                if existing_event:
-                    logger.debug(f"Event '{event_name}' already exists in cluster '{cluster_name}'")
-                    continue
-                
-                # Get all unique scoring types (sorted for consistency)
-                all_scoring_types = sorted(list(event_data['scoring_types']))
-                primary_scoring_type = all_scoring_types[0]
-                
-                # Determine player limits based on all supported scoring types
-                min_players = 2  # Minimum for any match type
-                max_players = 16  # Maximum to support FFA
-                
-                # If only 1v1 is supported, use more restrictive limits
-                if all_scoring_types == ['1v1']:
-                    min_players, max_players = 2, 2
-                elif 'Team' in all_scoring_types and 'FFA' not in all_scoring_types:
-                    # Team only or Team + 1v1
-                    min_players, max_players = 2, 10
-                
-                # Infer score direction for leaderboard events
-                score_direction = None
-                if 'Leaderboard' in all_scoring_types:
-                    # Use first available notes for inference
-                    first_notes = event_data['notes'][0] if event_data['notes'] else ''
-                    score_direction = infer_score_direction(event_name, first_notes)
-                
-                # Create unified event with complete supported_scoring_types
-                event = Event(
-                    name=event_name,  # Unified name
-                    base_event_name=event_name,  # Same as name for unified events
-                    cluster_id=current_cluster.id,
-                    # scoring_type removed - DEPRECATED field, moved to Match level
-                    supported_scoring_types=','.join(all_scoring_types),  # Complete list!
-                    score_direction=score_direction,
-                    crownslayer_pool=300,
-                    is_active=True,
-                    allow_challenges=True,
-                    min_players=min_players,
-                    max_players=max_players
-                )
-                
-                session.add(event)
-                events_created += 1
-                
-                logger.debug(
-                    f"Created unified event: {event_name} "
-                    f"(supports: {','.join(all_scoring_types)}, cluster: {cluster_name})"
-                    f"{f', direction: {score_direction}' if score_direction else ''}"
-                )
-            
-            # Commit all changes
-            await session.commit()
+        # Use provided session or create new transaction
+        if session:
+            # Use existing session (no transaction management)
+            events_created = await _create_database_records(session, event_data_agg, clusters_created, events_created, logger)
+        else:
+            # Create our own transaction
+            async with db.transaction() as new_session:
+                events_created = await _create_database_records(new_session, event_data_agg, clusters_created, events_created, logger)
+                # Commit handled by transaction context
             
     except Exception as e:
         logger.error(f"Error during CSV population: {e}")
         raise
     finally:
-        await db.close()
+        # Only close database if we own it
+        if own_db:
+            await db.close()
     
     results = {
         'clusters_created': len(clusters_created),

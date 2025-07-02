@@ -884,6 +884,54 @@ class MatchUndoLog(Base):
     def __repr__(self):
         return f"<MatchUndoLog(match_id={self.match_id}, undone_by={self.undone_by}, method={self.undo_method.value})>"
 
+class AdminAuditLog(Base):
+    """
+    Comprehensive audit log for administrative actions.
+    Tracks all administrative operations for compliance and debugging.
+    """
+    __tablename__ = 'admin_audit_log'
+    
+    id = Column(Integer, primary_key=True)
+    admin_id = Column(BigInteger, nullable=False)  # Discord ID of admin performing action
+    action_type = Column(String(50), nullable=False)  # e.g., "elo_reset", "match_undo", "data_populate"
+    target_type = Column(String(50), nullable=True)  # e.g., "player", "match", "event", "global"
+    target_id = Column(Integer, nullable=True)  # ID of target entity (if applicable)
+    details = Column(Text, nullable=True)  # JSON string with operation details
+    reason = Column(Text, nullable=True)  # Admin-provided reason for action
+    timestamp = Column(DateTime, default=func.now())
+    
+    # Optional relationships for context
+    affected_players_count = Column(Integer, default=0)  # Number of players affected
+    affected_events_count = Column(Integer, default=0)   # Number of events affected
+    
+    def __repr__(self):
+        return f"<AdminAuditLog(admin_id={self.admin_id}, action='{self.action_type}', target='{self.target_type}:{self.target_id}')>"
+
+class SeasonSnapshot(Base):
+    """
+    Season snapshots for Elo resets and backup purposes.
+    Stores complete tournament state before major administrative operations.
+    """
+    __tablename__ = 'season_snapshots'
+    
+    id = Column(Integer, primary_key=True)
+    season_name = Column(String(100), nullable=False)  # e.g., "Season 1", "Pre-reset backup"
+    snapshot_data = Column(Text, nullable=False)  # JSON string with complete tournament state
+    created_by = Column(BigInteger, nullable=False)  # Discord ID of admin creating snapshot
+    created_at = Column(DateTime, default=func.now())
+    
+    # Metadata
+    snapshot_type = Column(String(50), nullable=False)  # e.g., "elo_backup", "season_end", "migration"
+    description = Column(Text, nullable=True)  # Additional description
+    
+    # Statistics
+    players_count = Column(Integer, default=0)  # Number of players in snapshot
+    events_count = Column(Integer, default=0)   # Number of events in snapshot
+    matches_count = Column(Integer, default=0)  # Number of matches in snapshot
+    
+    def __repr__(self):
+        return f"<SeasonSnapshot(id={self.id}, name='{self.season_name}', type='{self.snapshot_type}')>"
+
 # ============================================================================
 # SQLAlchemy Event Listeners for Automatic Dual-Track Enforcement
 # ============================================================================
