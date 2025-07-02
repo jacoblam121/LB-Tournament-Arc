@@ -20,9 +20,21 @@ import json
 
 from bot.database.match_operations import MatchOperations, MatchOperationError, MatchStateError
 from bot.operations.player_operations import PlayerOperations, PlayerOperationError
-from bot.database.models import Match, MatchParticipant, MatchStatus, ConfirmationStatus, Player
+from bot.database.models import Match, MatchParticipant, MatchStatus, ConfirmationStatus, Player, Event
 from bot.utils.logger import setup_logger
 from bot.config import Config
+
+
+def format_match_context(match: Match) -> str:
+    """Format match context for consistent display across all embeds"""
+    if not match or not match.event:
+        return "🎮 Unknown Event"
+    
+    cluster_name = match.event.cluster.name if match.event.cluster else "Unknown"
+    event_name = match.event.name
+    match_type = match.scoring_type.upper()
+    
+    return f"🎮 {cluster_name} • {event_name} • {match_type}"
 
 
 def is_bot_owner(interaction: discord.Interaction) -> bool:
@@ -261,7 +273,7 @@ class PlacementModal(discord.ui.Modal):
     
     async def _validate_modal_placements(self, placements: dict, interaction: discord.Interaction):
         """
-        Validate that modal placements are unique and form a valid sequence.
+        Validate that modal placements form a valid competition ranking sequence, allowing for ties.
         
         Args:
             placements: Dict of player_id -> placement
@@ -278,22 +290,30 @@ class PlacementModal(discord.ui.Modal):
             raise ValueError("No placements provided")
         
         placement_values = list(placements.values())
-        expected_placements = set(range(1, len(placement_values) + 1))
-        actual_placements = set(placement_values)
         
-        if actual_placements != expected_placements:
-            missing = expected_placements - actual_placements
-            extra = actual_placements - expected_placements
-            
-            error_msg = "❌ Invalid placements detected:\n"
-            if missing:
-                error_msg += f"• Missing: {sorted(missing)}\n"
-            if extra:
-                error_msg += f"• Invalid: {sorted(extra)}\n"
-            error_msg += f"\nExpected: {sorted(expected_placements)}"
-            
-            await interaction.followup.send(error_msg, ephemeral=True)
-            raise ValueError(f"Invalid placements: expected {sorted(expected_placements)}, got {sorted(actual_placements)}")
+        # Validate that placements start at 1
+        if min(placement_values) != 1:
+            await interaction.followup.send(
+                "❌ Invalid placements: Placements must start from 1.",
+                ephemeral=True
+            )
+            raise ValueError("Placements must start from 1")
+
+        # Validate standard competition ranking (e.g., 1, 2, 2, 4 is valid)
+        placement_counts = {}
+        for p in placement_values:
+            placement_counts[p] = placement_counts.get(p, 0) + 1
+        
+        current_position = 1
+        for placement in sorted(placement_counts.keys()):
+            if placement < current_position:
+                error_msg = (
+                    f"❌ Invalid placement sequence. After position {current_position - 1}, "
+                    f"the next placement should be {current_position} or higher, but got {placement}."
+                )
+                await interaction.followup.send(error_msg, ephemeral=True)
+                raise ValueError(f"Invalid placement sequence: {placement} used after position {current_position}")
+            current_position += placement_counts[placement]
     
     async def _create_success_embed(self, match: Match, interaction: discord.Interaction, force_completion: bool = False) -> discord.Embed:
         """
@@ -501,9 +521,12 @@ class MatchConfirmationView(discord.ui.View):
     
     def _create_unified_embed(self, proposal, confirmations, results_data=None) -> discord.Embed:
         """Create unified embed showing both proposed results and confirmation status"""
+        # Add match context for clarity
+        match_context = format_match_context(proposal.match)
+        
         embed = discord.Embed(
             title="📋 Match Results - Awaiting Confirmation",
-            description=f"**Match ID:** {proposal.match_id}",
+            description=f"{match_context}\n**Match ID:** {proposal.match_id}",
             color=discord.Color.orange()
         )
         
@@ -591,9 +614,12 @@ class MatchConfirmationView(discord.ui.View):
     
     async def _create_completed_embed(self, match: Match) -> discord.Embed:
         """Create embed for completed match"""
+        # Add match context for clarity
+        match_context = format_match_context(match)
+        
         embed = discord.Embed(
             title="✅ Match Results Confirmed!",
-            description=f"**Match ID:** {match.id}",
+            description=f"{match_context}\n**Match ID:** {match.id}",
             color=discord.Color.green()
         )
         
@@ -663,7 +689,7 @@ class MatchConfirmationView(discord.ui.View):
 
 
 class MatchCommandsCog(commands.Cog):
-    """Commands for N-player match functionality (FFA, Team, etc.)"""
+    """Commands for N-player match functionality - use /challenge for all match types"""
     
     def __init__(self, bot):
         self.bot = bot
@@ -672,6 +698,7 @@ class MatchCommandsCog(commands.Cog):
         self.match_ops = None
         self.player_ops = None
         
+
     @commands.Cog.listener()
     async def on_ready(self):
         """Initialize all operations after bot and database are ready"""
@@ -901,7 +928,7 @@ class MatchCommandsCog(commands.Cog):
             )
             embed.add_field(
                 name="Next Steps",
-                value="Ready for FFA and report command implementation",
+                value="Ready for match reporting - use /challenge to create matches",
                 inline=False
             )
             await ctx.send(embed=embed)
@@ -936,36 +963,6 @@ class MatchCommandsCog(commands.Cog):
         )
         await ctx.send(embed=embed)
     
-    @commands.hybrid_command(name='ffa', description="[DEPRECATED] Use /challenge command instead")
-    @app_commands.describe(players="Players for the match (space-separated mentions)")
-    async def create_ffa_match(self, ctx, *, players: str = ""):
-        """[DEPRECATED] Use the /challenge command to start a match.
-        
-        This command has been removed to maintain proper tournament hierarchy.
-        All matches must now go through the structured /challenge workflow.
-        """
-        embed = discord.Embed(
-            title="⚠️ Command Deprecated",
-            description="The `/ffa` command is no longer available.",
-            color=discord.Color.orange()
-        )
-        embed.add_field(
-            name="New Workflow",
-            value="Please use the `/challenge` command to create matches:\n"
-                  "1. Select a tournament cluster\n"
-                  "2. Choose an event within that cluster\n"
-                  "3. Set match type (1v1, FFA, Team)\n"
-                  "4. Mention your opponents",
-            inline=False
-        )
-        embed.add_field(
-            name="Why the Change?",
-            value="All matches now require proper tournament structure to ensure accurate statistics and fair competition.",
-            inline=False
-        )
-        embed.set_footer(text="This change maintains the integrity of the tournament system")
-        
-        await ctx.send(embed=embed, ephemeral=True)
     
     @commands.hybrid_command(name='match-report', description="Report match results with placements")
     @app_commands.describe(
@@ -1536,7 +1533,7 @@ class MatchCommandsCog(commands.Cog):
         
         embed = discord.Embed(
             title="🎯 Match Commands",
-            description="N-Player match functionality for FFA and Team battles",
+            description="N-Player match functionality - use /challenge to create matches",
             color=discord.Color.blue()
         )
         
@@ -1550,7 +1547,7 @@ class MatchCommandsCog(commands.Cog):
             name="✅ Available Commands",
             value=(
                 "`!match-report <id> @user1:1 @user2:2 ...` - Record match results\n"
-                "Note: `/ffa` command deprecated - use `/challenge` instead"
+                "Use `/challenge` command to create all match types (1v1, FFA, Team)"
             ),
             inline=False
         )
@@ -1558,7 +1555,7 @@ class MatchCommandsCog(commands.Cog):
         embed.add_field(
             name="📈 Development Status",
             value="**Phase 2A2.5 Subphase 1**: Foundation ✅\n"
-                  "**Phase 2A2.5 Subphase 2**: FFA Implementation ✅\n"
+                  "**Phase 2A2.5 Subphase 2**: Match Integration ✅\n"
                   "**Phase 2A2.5 Subphase 3**: Testing & Polish 🚧",
             inline=False
         )
@@ -1566,7 +1563,7 @@ class MatchCommandsCog(commands.Cog):
         embed.add_field(
             name="💡 Tips",
             value="• Players are auto-registered when mentioned\n"
-                  "• Each FFA match gets its own Event for better tracking\n"
+                  "• Use /challenge command to create all match types\n"
                   "• Match IDs are provided for result reporting",
             inline=False
         )

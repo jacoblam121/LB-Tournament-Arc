@@ -710,23 +710,17 @@ class ChallengeCog(commands.Cog):
     
     def _create_match_ready_embed(self, match, challenge: Challenge) -> discord.Embed:
         """Create embed when all participants accept and match is created"""
+        # Format match context for clarity
+        cluster_name = challenge.event.cluster.name if challenge.event.cluster else "Unknown"
+        event_name = challenge.event.name
+        match_type = match.scoring_type.upper()
+        match_context = f"🎮 {cluster_name} • {event_name} • {match_type}"
+        
         embed = discord.Embed(
             title="Match Ready!",
-            description=f"All participants accepted - Match #{match.id} created",
+            description=f"{match_context}\nAll participants accepted - Match #{match.id} created",
             color=discord.Color.green(),
             timestamp=datetime.now(timezone.utc)
-        )
-        
-        embed.add_field(
-            name="Event", 
-            value=challenge.event.name,
-            inline=True
-        )
-        
-        embed.add_field(
-            name="Match Type",
-            value=match.scoring_type.upper(),
-            inline=True
         )
         
         embed.add_field(

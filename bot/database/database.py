@@ -755,6 +755,53 @@ class Database:
         async with self.transaction() as session:
             return await self.get_or_create_player_event_stats(player_id, event_id, session)
     
+    async def bulk_get_or_create_player_event_stats(self, player_ids: list[int], event_id: int, session: AsyncSession) -> dict[int, PlayerEventStats]:
+        """
+        Bulk get or create PlayerEventStats for multiple players in an event.
+        
+        Args:
+            player_ids: List of player IDs to fetch/create stats for
+            event_id: Event ID for the stats
+            session: Database session for the operation
+            
+        Returns:
+            Dict mapping player_id to PlayerEventStats object
+        """
+        # First, fetch all existing stats in one query
+        existing_stats_query = select(PlayerEventStats).where(
+            PlayerEventStats.player_id.in_(player_ids),
+            PlayerEventStats.event_id == event_id
+        ).with_for_update()
+        
+        result = await session.execute(existing_stats_query)
+        existing_stats = result.scalars().all()
+        
+        # Create lookup dict
+        stats_dict = {stats.player_id: stats for stats in existing_stats}
+        
+        # Identify missing players and create their stats
+        existing_player_ids = set(stats_dict.keys())
+        missing_player_ids = set(player_ids) - existing_player_ids
+        
+        for player_id in missing_player_ids:
+            new_stats = PlayerEventStats(
+                player_id=player_id,
+                event_id=event_id,
+                raw_elo=Config.STARTING_ELO,
+                scoring_elo=Config.STARTING_ELO
+            )
+            session.add(new_stats)
+            stats_dict[player_id] = new_stats
+        
+        # Flush to get IDs for new stats
+        if missing_player_ids:
+            await session.flush()
+            # Refresh new stats to get their IDs
+            for player_id in missing_player_ids:
+                await session.refresh(stats_dict[player_id])
+        
+        return stats_dict
+    
     async def update_event_elo(self, player_id: int, event_id: int, new_raw_elo: int, 
                               session: AsyncSession, match_result: MatchResult,
                               match_id: Optional[int] = None, challenge_id: Optional[int] = None) -> PlayerEventStats:

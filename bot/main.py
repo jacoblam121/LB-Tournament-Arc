@@ -57,7 +57,8 @@ class TournamentBot(commands.Bot):
             'bot.cogs.leaderboard',
             'bot.cogs.events',
             'bot.cogs.match_commands',
-            'bot.cogs.housekeeping'
+            'bot.cogs.housekeeping',
+            'bot.cogs.help_commands'
         ]
         
         for cog in cogs_to_load:
@@ -119,11 +120,21 @@ class TournamentBot(commands.Bot):
     
     async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         """Global error handler for slash commands"""
-        self.logger.error(f"Error in app command '{interaction.command.name if interaction.command else 'Unknown'}': {error}", exc_info=True)
+        # Don't log full traceback for permission errors
+        if isinstance(error, app_commands.CheckFailure):
+            self.logger.info(f"Permission denied for command '{interaction.command.name if interaction.command else 'Unknown'}' by user {interaction.user}")
+        else:
+            self.logger.error(f"Error in app command '{interaction.command.name if interaction.command else 'Unknown'}': {error}", exc_info=True)
         
         # Handle specific error types
         if isinstance(error, app_commands.CommandOnCooldown):
             error_message = f"❌ Command is on cooldown. Try again in {error.retry_after:.2f} seconds."
+        elif isinstance(error, app_commands.CheckFailure):
+            # Check if this is an admin command based on command name
+            if interaction.command and interaction.command.name.startswith('admin-'):
+                error_message = "❌ Administrative Privileges Required\n\nThis command is restricted to bot administrators only."
+            else:
+                error_message = "❌ Permission Denied\n\nYou don't have the required permissions to use this command."
         elif isinstance(error, app_commands.MissingPermissions):
             error_message = "❌ You don't have permission to use this command."
         elif isinstance(error, app_commands.BotMissingPermissions):
@@ -135,16 +146,50 @@ class TournamentBot(commands.Bot):
         
         # Send error response
         try:
-            if interaction.response.is_done():
-                await interaction.followup.send(error_message, ephemeral=True)
+            # Create error embed for better presentation
+            if isinstance(error, app_commands.CheckFailure) and interaction.command and interaction.command.name.startswith('admin-'):
+                # Special embed for admin commands
+                error_embed = discord.Embed(
+                    title="❌ Administrative Privileges Required",
+                    description="This command is restricted to bot administrators only.",
+                    color=discord.Color.red()
+                )
+                error_embed.set_footer(text="Contact the bot owner if you believe you should have access.")
             else:
-                await interaction.response.send_message(error_message, ephemeral=True)
+                # Generic error embed
+                error_embed = discord.Embed(
+                    title=error_message.split('\n')[0],  # Use first line as title
+                    description='\n'.join(error_message.split('\n')[1:]) if '\n' in error_message else None,
+                    color=discord.Color.red()
+                )
+            
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
         except Exception as e:
             self.logger.error(f"Failed to send error response: {e}")
         
     async def on_command_error(self, ctx: commands.Context, error: Exception):
         """Global error handler for commands"""
         if isinstance(error, commands.CommandNotFound):
+            return
+            
+        if isinstance(error, commands.CheckFailure):
+            # Log permission denial without full traceback
+            self.logger.info(f"Permission denied for command '{ctx.command.name if ctx.command else 'Unknown'}' by user {ctx.author}")
+            
+            # Check if this is an admin command (prefix commands from admin cog)
+            if ctx.command and (ctx.command.name in ['shutdown', 'reload', 'dbstats'] or ctx.command.name.startswith('admin')):
+                embed = discord.Embed(
+                    title="❌ Administrative Privileges Required",
+                    description="This command is restricted to bot administrators only.",
+                    color=discord.Color.red()
+                )
+                embed.set_footer(text="Contact the bot owner if you believe you should have access.")
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send("❌ You don't have permission to use this command.")
             return
             
         if isinstance(error, commands.MissingPermissions):
@@ -163,9 +208,10 @@ class TournamentBot(commands.Bot):
             await ctx.send(f"❌ Missing required argument: `{error.param.name}`")
             return
             
-        # Log unexpected errors
-        self.logger.error(f"Unexpected error in command {ctx.command}: {error}")
-        self.logger.error(traceback.format_exc())
+        # Log unexpected errors (but not permission errors which were already handled)
+        if not isinstance(error, (commands.CheckFailure, commands.MissingPermissions)):
+            self.logger.error(f"Unexpected error in command {ctx.command}: {error}")
+            self.logger.error(traceback.format_exc())
         
         embed = discord.Embed(
             title="❌ An error occurred",

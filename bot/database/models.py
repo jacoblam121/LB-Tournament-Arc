@@ -515,6 +515,24 @@ class ChallengeRole(Enum):
     CHALLENGER = "challenger"  # Challenge initiator (lowercase for SQL compatibility)
     CHALLENGED = "challenged"  # Challenge recipient (lowercase for SQL compatibility)
 
+class AdminPermissionType(Enum):
+    """Types of admin permissions for role-based access control"""
+    UNDO_MATCH = "undo_match"
+    MODIFY_RATINGS = "modify_ratings"
+    GRANT_TICKETS = "grant_tickets"
+    MANAGE_EVENTS = "manage_events"
+    MANAGE_CHALLENGES = "manage_challenges"
+
+class PermissionAction(Enum):
+    """Actions that can be performed on admin permissions"""
+    GRANTED = "granted"
+    REVOKED = "revoked"
+
+class UndoMethod(Enum):
+    """Methods used to undo match operations"""
+    INVERSE_DELTA = "inverse_delta"
+    RECALCULATION = "recalculation"
+
 class ChallengeParticipant(Base):
     """
     Represents a participant in an N-player challenge.
@@ -807,6 +825,64 @@ class TicketLedger(Base):
     
     def __repr__(self):
         return f"<TicketLedger(player_id={self.player_id}, amount={self.change_amount}, balance_after={self.balance_after}, reason='{self.reason}')>"
+
+class AdminRole(Base):
+    """
+    Admin role assignments for role-based access control.
+    Maps Discord users to admin roles with specific permissions.
+    """
+    __tablename__ = 'admin_roles'
+    
+    id = Column(Integer, primary_key=True)
+    discord_id = Column(BigInteger, nullable=False, unique=True)  # Discord user ID
+    role_name = Column(String(50), nullable=False)
+    permissions = Column(String(500), nullable=False)  # JSON string of AdminPermissionType values
+    granted_by = Column(BigInteger, nullable=False)  # Discord ID of granting admin
+    granted_at = Column(DateTime, default=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    def __repr__(self):
+        return f"<AdminRole(discord_id={self.discord_id}, role='{self.role_name}', active={self.is_active})>"
+
+class AdminPermissionLog(Base):
+    """
+    Audit log for admin permission changes.
+    Tracks all permission grants and revocations for compliance.
+    """
+    __tablename__ = 'admin_permission_logs'
+    
+    id = Column(Integer, primary_key=True)
+    admin_id = Column(BigInteger, nullable=False)  # Discord ID of affected admin
+    permission_type = Column(SQLEnum(AdminPermissionType), nullable=False)
+    action = Column(SQLEnum(PermissionAction), nullable=False)
+    performed_by = Column(BigInteger, nullable=False)  # Discord ID of user making change
+    timestamp = Column(DateTime, default=func.now())
+    reason = Column(Text)
+    
+    def __repr__(self):
+        return f"<AdminPermissionLog(admin_id={self.admin_id}, permission={self.permission_type.value}, action={self.action.value})>"
+
+class MatchUndoLog(Base):
+    """
+    Audit log for match undo operations.
+    Tracks all match undos for administrative oversight and compliance.
+    """
+    __tablename__ = 'match_undo_logs'
+    
+    id = Column(Integer, primary_key=True)
+    match_id = Column(Integer, ForeignKey('matches.id'), nullable=False)
+    undone_by = Column(BigInteger, nullable=False)  # Discord ID of admin performing undo
+    undo_method = Column(SQLEnum(UndoMethod), nullable=False)
+    affected_players = Column(Integer, nullable=False)  # Number of players affected
+    subsequent_matches_recalculated = Column(Integer, default=0)  # Number of subsequent matches recalced
+    reason = Column(Text)
+    timestamp = Column(DateTime, default=func.now())
+    
+    # Relationships
+    match = relationship("Match")
+    
+    def __repr__(self):
+        return f"<MatchUndoLog(match_id={self.match_id}, undone_by={self.undone_by}, method={self.undo_method.value})>"
 
 # ============================================================================
 # SQLAlchemy Event Listeners for Automatic Dual-Track Enforcement

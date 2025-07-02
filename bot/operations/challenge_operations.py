@@ -1017,26 +1017,25 @@ class ChallengeOperations:
         await session.flush()  # Get match ID
         
         # Create MatchParticipant records from ChallengeParticipant
-        # First, gather all Elo data without triggering autoflush
-        participant_elos = {}
-        with session.no_autoflush:
-            for challenge_participant in challenge.participants:
-                # Get current Elo for this player in this event
-                from bot.database.models import PlayerEventStats
-                
-                # Try to get existing PlayerEventStats
-                elo_stmt = (
-                    select(PlayerEventStats.scoring_elo)
-                    .where(
-                        and_(
-                            PlayerEventStats.player_id == challenge_participant.player_id,
-                            PlayerEventStats.event_id == challenge.event_id
-                        )
-                    )
-                )
-                elo_result = await session.execute(elo_stmt)
-                current_elo = elo_result.scalar_one_or_none() or 1000  # Default Elo
-                participant_elos[challenge_participant.player_id] = current_elo
+        # First, gather all Elo data in a single query to avoid N+1
+        from bot.database.models import PlayerEventStats
+        participant_ids = [p.player_id for p in challenge.participants]
+        
+        elo_stmt = (
+            select(PlayerEventStats.player_id, PlayerEventStats.scoring_elo)
+            .where(
+                PlayerEventStats.player_id.in_(participant_ids),
+                PlayerEventStats.event_id == challenge.event_id
+            )
+        )
+        elo_results = await session.execute(elo_stmt)
+        # Create a dictionary of player_id -> elo
+        participant_elos = {player_id: elo for player_id, elo in elo_results}
+        
+        # Use default Elo for players without existing stats
+        for participant in challenge.participants:
+            if participant.player_id not in participant_elos:
+                participant_elos[participant.player_id] = 1000  # Default Elo
         
         # Check for existing participants to prevent orphaned data conflicts
         existing_participants_stmt = select(MatchParticipant).where(MatchParticipant.match_id == match.id)
@@ -1123,7 +1122,7 @@ class ChallengeOperations:
             select(Challenge)
             .where(Challenge.id == challenge_id)
             .options(
-                selectinload(Challenge.event),
+                selectinload(Challenge.event).selectinload(Event.cluster),
                 selectinload(Challenge.participants).selectinload(
                     ChallengeParticipant.player
                 )

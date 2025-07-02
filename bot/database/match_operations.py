@@ -201,7 +201,10 @@ class MatchOperations:
                 # Reload match with relationships for return
                 result = await session.execute(
                     select(Match)
-                    .options(selectinload(Match.participants))
+                    .options(
+                        selectinload(Match.participants),
+                        selectinload(Match.event).selectinload(Event.cluster)
+                    )
                     .where(Match.id == match.id)
                 )
                 match = result.scalar_one()
@@ -705,21 +708,24 @@ class MatchOperations:
                 
                 # Phase 1.2: Get event-specific stats for each participant
                 event_id = match.event_id
-                player_event_stats = {}
                 
+                # Validate all participants have results before bulk fetching
                 for participant in match.participants:
                     if participant.player_id not in results_by_player:
                         raise MatchValidationError(
                             f"Missing result for participant {participant.player_id}"
                         )
-                    
-                    # Get or create event-specific stats
-                    event_stats = await self.db.get_or_create_player_event_stats(
-                        participant.player_id, event_id, session
-                    )
-                    player_event_stats[participant.player_id] = event_stats
-                    
+                
+                # Bulk fetch/create PlayerEventStats to avoid N+1 query
+                player_ids = [p.player_id for p in match.participants]
+                player_event_stats = await self.db.bulk_get_or_create_player_event_stats(
+                    player_ids, event_id, session
+                )
+                
+                # Build participant results using bulk-fetched stats
+                for participant in match.participants:
                     result_data = results_by_player[participant.player_id]
+                    event_stats = player_event_stats[participant.player_id]
                     
                     # Use event-specific elo and matches for calculations
                     participant_result = ParticipantResult(
@@ -825,7 +831,10 @@ class MatchOperations:
                 # Reload match with relationships for return
                 result = await session.execute(
                     select(Match)
-                    .options(selectinload(Match.participants))
+                    .options(
+                        selectinload(Match.participants),
+                        selectinload(Match.event).selectinload(Event.cluster)
+                    )
                     .where(Match.id == match.id)
                 )
                 match = result.scalar_one()
@@ -1181,9 +1190,10 @@ class MatchOperations:
             result = await sess.execute(
                 select(MatchResultProposal)
                 .options(
-                    selectinload(MatchResultProposal.match)
-                    .selectinload(Match.participants)
-                    .selectinload(MatchParticipant.player),
+                    selectinload(MatchResultProposal.match).options(
+                        selectinload(Match.participants).selectinload(MatchParticipant.player),
+                        selectinload(Match.event).selectinload(Event.cluster)
+                    ),
                     selectinload(MatchResultProposal.proposer)
                 )
                 .where(MatchResultProposal.id == proposal.id)
@@ -1207,7 +1217,9 @@ class MatchOperations:
             result = await session.execute(
                 select(MatchResultProposal)
                 .options(
-                    selectinload(MatchResultProposal.match),
+                    selectinload(MatchResultProposal.match)
+                    .selectinload(Match.event)
+                    .selectinload(Event.cluster),
                     selectinload(MatchResultProposal.proposer)
                 )
                 .where(MatchResultProposal.match_id == match_id)
@@ -1232,9 +1244,10 @@ class MatchOperations:
             result = await session.execute(
                 select(MatchResultProposal)
                 .options(
-                    selectinload(MatchResultProposal.match)
-                    .selectinload(Match.participants)
-                    .selectinload(MatchParticipant.player),
+                    selectinload(MatchResultProposal.match).options(
+                        selectinload(Match.participants).selectinload(MatchParticipant.player),
+                        selectinload(Match.event).selectinload(Event.cluster)
+                    ),
                     selectinload(MatchResultProposal.proposer)
                 )
                 .where(
