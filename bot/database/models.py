@@ -933,6 +933,34 @@ class SeasonSnapshot(Base):
         return f"<SeasonSnapshot(id={self.id}, name='{self.season_name}', type='{self.snapshot_type}')>"
 
 # ============================================================================
+# Phase 1.1.1: Configuration Management Models
+# ============================================================================
+
+class Configuration(Base):
+    """Simple key-value configuration storage."""
+    __tablename__ = 'configurations'
+    
+    key = Column(String(255), primary_key=True)
+    value = Column(Text, nullable=False)  # JSON-encoded
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<Configuration(key='{self.key}')>"
+
+class AuditLog(Base):
+    """Basic audit trail for configuration changes."""
+    __tablename__ = 'audit_logs'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, nullable=False)  # Discord user ID
+    action = Column(String(50), nullable=False)   # e.g., 'config_set'
+    details = Column(Text)  # JSON with old/new values
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<AuditLog(user_id={self.user_id}, action='{self.action}')>"
+
+# ============================================================================
 # SQLAlchemy Event Listeners for Automatic Dual-Track Enforcement
 # ============================================================================
 

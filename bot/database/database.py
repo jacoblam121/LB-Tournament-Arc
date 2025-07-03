@@ -13,7 +13,8 @@ from bot.database.models import (
     ChallengeStatus, MatchResult, Cluster, Event,
     Match, MatchParticipant, MatchStatus, MatchFormat,  # Phase 2A2: Match models
     ConfirmationStatus, MatchResultProposal, MatchConfirmation,  # Phase B: Confirmation models
-    PlayerEventStats, PlayerEventPersonalBest, WeeklyScores, PlayerWeeklyLeaderboardElo, TicketLedger  # Phase 1.1: Per-event tracking
+    PlayerEventStats, PlayerEventPersonalBest, WeeklyScores, PlayerWeeklyLeaderboardElo, TicketLedger,  # Phase 1.1: Per-event tracking
+    Configuration, AuditLog  # Phase 1.1.1: Configuration management
 )
 from bot.utils.logger import setup_logger
 

@@ -9,6 +9,7 @@ from discord import app_commands
 
 from bot.config import Config
 from bot.database.database import Database
+from bot.services.rate_limiter import SimpleRateLimiter
 from bot.utils.logger import setup_logger
 
 class TournamentBot(commands.Bot):
@@ -29,6 +30,7 @@ class TournamentBot(commands.Bot):
         self.tree.on_error = self.on_app_command_error
         
         self.db: Optional[Database] = None
+        self.rate_limiter = SimpleRateLimiter()
         self.logger = setup_logger(__name__)
         
     async def setup_hook(self):
