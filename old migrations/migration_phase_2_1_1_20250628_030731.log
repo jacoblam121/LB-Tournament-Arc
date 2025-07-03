@@ -1,3 +1,0 @@
-2025-06-28 03:07:31,341 - __main__ - INFO - ✅ Backup created: tournament_backup_phase_2_1_1_20250628_030731.db
-2025-06-28 03:07:31,342 - __main__ - INFO - SQLite version: 3.45.1
-2025-06-28 03:07:31,342 - __main__ - INFO - ℹ️  Migration already applied - role column exists
