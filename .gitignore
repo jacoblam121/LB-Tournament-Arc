@@ -112,6 +112,12 @@ notes_*.txt
 temp/
 tmp/
 
+# Additional directories
+rollbacks/
+random sql files/
+other/
+backups/
+
 # Editor backups
 *.bak
 *.orig
