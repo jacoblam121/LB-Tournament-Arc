@@ -835,6 +835,8 @@ Here is an extremely detailed, step-by-step explanation of how the Leaderboard E
 
 ### **ADDENDUM B: The Leaderboard Event System**
 
+CHANGE FROM THIS OVERVIEW: WEEKLY RESET WILL BE DONE MANUALLY, NOT AUTOMATICALLY
+
 This addendum provides a complete specification for events with the `scoring_type` of 'Leaderboard'. These events are asynchronous, performance-based competitions (e.g., Tetris high score, 40L Sprint time, 1-mile run time) where players compete against a metric rather than each other directly.
 
 ### **1. The Core Philosophy**
