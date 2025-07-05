@@ -10,6 +10,7 @@ from discord import app_commands
 from bot.config import Config
 from bot.database.database import Database
 from bot.services.rate_limiter import SimpleRateLimiter
+from bot.services.configuration import ConfigurationService
 from bot.utils.logger import setup_logger
 
 class TournamentBot(commands.Bot):
@@ -31,6 +32,7 @@ class TournamentBot(commands.Bot):
         
         self.db: Optional[Database] = None
         self.rate_limiter = SimpleRateLimiter()
+        self.config_service: Optional[ConfigurationService] = None
         self.logger = setup_logger(__name__)
         
     async def setup_hook(self):
@@ -40,6 +42,11 @@ class TournamentBot(commands.Bot):
         # Initialize database
         self.db = Database()
         await self.db.initialize()
+        
+        # Initialize configuration service and load configs
+        self.config_service = ConfigurationService(self.db.session_factory)
+        await self.config_service.load_all()
+        self.logger.info("Configuration service initialized")
         
         # Load cogs
         await self.load_cogs()

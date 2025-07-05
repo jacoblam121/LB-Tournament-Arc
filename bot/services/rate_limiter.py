@@ -5,6 +5,7 @@ Phase 1.1.1: Simple in-memory rate limiting using deques and time-based windows.
 """
 
 import time
+import threading
 from functools import wraps
 from collections import defaultdict, deque
 import logging
@@ -21,22 +22,28 @@ class SimpleRateLimiter:
     
     def __init__(self):
         self._requests = defaultdict(deque)  # Memory grows with unique user:command pairs
+        self._lock = threading.Lock()  # Thread safety for concurrent access
     
     def is_allowed(self, user_id: int, command: str, limit: int, window: int) -> bool:
         """Check if user can execute command within rate limit."""
+        # Input validation: reject invalid parameters
+        if limit <= 0 or window <= 0:
+            return False
+            
         key = f"{user_id}:{command}"
         now = time.time()
         
-        # Clean old requests outside window
-        while self._requests[key] and self._requests[key][0] < now - window:
-            self._requests[key].popleft()
-        
-        # Check if under limit
-        if len(self._requests[key]) < limit:
-            self._requests[key].append(now)
-            return True
-        
-        return False
+        with self._lock:
+            # Clean old requests outside window
+            while self._requests[key] and self._requests[key][0] < now - window:
+                self._requests[key].popleft()
+            
+            # Check if under limit
+            if len(self._requests[key]) < limit:
+                self._requests[key].append(now)
+                return True
+            
+            return False
 
 def rate_limit(command: str, limit: int = 1, window: int = 60):
     """Decorator for rate limiting Discord commands."""

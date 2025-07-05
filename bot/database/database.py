@@ -93,6 +93,11 @@ class Database:
                 self.logger.info("No clusters found. Run populate_from_csv.py to initialize data.")
                 # await self.import_clusters_and_events_from_csv(session)
     
+    @property
+    def session_factory(self):
+        """Provide session factory for service layer integration."""
+        return self.async_session
+
     @asynccontextmanager
     async def get_session(self):
         """Get a database session"""

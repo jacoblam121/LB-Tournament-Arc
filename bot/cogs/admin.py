@@ -1001,5 +1001,188 @@ class AdminCog(commands.Cog):
             ))
 
 
+    # ============================================================================
+    # Configuration Management Commands (Phase 1.2.3)
+    # ============================================================================
+    
+    @app_commands.command(name="config-list", description="List configuration values, optionally filtered by category")
+    @app_commands.describe(category="Configuration category to filter by (e.g., 'elo', 'shop')")
+    async def config_list(self, interaction: discord.Interaction, category: Optional[str] = None):
+        """List configuration values, optionally filtered by category."""
+        # Check admin permissions
+        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        config_service = getattr(self.bot, 'config_service', None)
+        if not config_service:
+            await interaction.response.send_message("❌ Configuration service not available.", ephemeral=True)
+            return
+        
+        if category:
+            configs = config_service.get_by_category(category)
+            title = f"Configuration: {category}"
+        else:
+            configs = config_service.list_all()
+            title = "All Configuration"
+        
+        if not configs:
+            await interaction.response.send_message(
+                f"No configuration found for category '{category}'." if category 
+                else "No configuration found.",
+                ephemeral=True
+            )
+            return
+        
+        # Format as readable list (truncate if too long)
+        output = f"**{title}:**\n```json\n"
+        for key, value in sorted(configs.items()):
+            line = f"{key}: {value}\n"
+            if len(output) + len(line) > 1900:  # Discord embed limit
+                output += "... (truncated)\n"
+                break
+            output += line
+        output += "```"
+        
+        await interaction.response.send_message(output, ephemeral=True)
+    
+    @app_commands.command(name="config-get", description="Get a specific configuration value")
+    @app_commands.describe(key="Configuration key (e.g., 'elo.starting_elo')")
+    async def config_get(self, interaction: discord.Interaction, key: str):
+        """Get a specific configuration value."""
+        # Check admin permissions
+        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        config_service = getattr(self.bot, 'config_service', None)
+        if not config_service:
+            await interaction.response.send_message("❌ Configuration service not available.", ephemeral=True)
+            return
+        
+        value = config_service.get(key)
+        
+        if value is None:
+            await interaction.response.send_message(
+                f"Configuration key '{key}' not found.", 
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                f"**{key}:** `{value}`", 
+                ephemeral=True
+            )
+    
+    @app_commands.command(name="config-set", description="Set a configuration value")
+    @app_commands.describe(
+        key="Configuration key (e.g., 'elo.starting_elo')",
+        value="Configuration value (JSON format for complex values)"
+    )
+    async def config_set(
+        self, 
+        interaction: discord.Interaction, 
+        key: str, 
+        value: str
+    ):
+        """Set a configuration value."""
+        # Check admin permissions
+        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        config_service = getattr(self.bot, 'config_service', None)
+        if not config_service:
+            await interaction.response.send_message("❌ Configuration service not available.", ephemeral=True)
+            return
+        
+        # Basic input validation
+        if len(key) > 255:
+            await interaction.response.send_message(
+                "Error: Configuration key cannot exceed 255 characters.",
+                ephemeral=True
+            )
+            return
+        
+        if len(value) > 10000:  # Reasonable limit for config values
+            await interaction.response.send_message(
+                "Error: Configuration value too large (max 10,000 characters).",
+                ephemeral=True
+            )
+            return
+        
+        try:
+            # Try to parse as JSON first (for numbers, bools, objects, etc)
+            import json
+            parsed_value = json.loads(value)
+        except json.JSONDecodeError:
+            # Treat as string if not valid JSON
+            parsed_value = value
+        
+        try:
+            await config_service.set(key, parsed_value, interaction.user.id)
+            await interaction.response.send_message(
+                f"✅ Configuration updated: **{key}** = `{parsed_value}`",
+                ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                f"❌ Error updating configuration: {str(e)}",
+                ephemeral=True
+            )
+    
+    @app_commands.command(name="config-reload", description="Reload all configurations from database")
+    async def config_reload(self, interaction: discord.Interaction):
+        """Reload all configurations from database."""
+        # Check admin permissions
+        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        config_service = getattr(self.bot, 'config_service', None)
+        if not config_service:
+            await interaction.response.send_message("❌ Configuration service not available.", ephemeral=True)
+            return
+        
+        try:
+            await config_service.load_all()
+            await interaction.response.send_message(
+                "✅ Configuration reloaded from database.",
+                ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                f"❌ Error reloading configuration: {str(e)}",
+                ephemeral=True
+            )
+    
+    @app_commands.command(name="config-categories", description="List all configuration categories")
+    async def config_categories(self, interaction: discord.Interaction):
+        """List all configuration categories and their parameter counts."""
+        # Check admin permissions
+        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+            return
+        
+        config_service = getattr(self.bot, 'config_service', None)
+        if not config_service:
+            await interaction.response.send_message("❌ Configuration service not available.", ephemeral=True)
+            return
+        
+        categories = config_service.get_categories()
+        
+        if not categories:
+            await interaction.response.send_message("No configuration categories found.", ephemeral=True)
+            return
+        
+        output = "**Configuration Categories:**\n```\n"
+        total_params = 0
+        for category, count in sorted(categories.items()):
+            output += f"{category}: {count} parameters\n"
+            total_params += count
+        output += f"\nTotal: {total_params} parameters\n```"
+        
+        await interaction.response.send_message(output, ephemeral=True)
+
+
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
