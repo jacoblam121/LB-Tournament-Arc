@@ -4,7 +4,7 @@ import os
 from typing import Optional, List, Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, update, delete, func, text
 from contextlib import asynccontextmanager
 
 from bot.config import Config
@@ -48,6 +48,9 @@ class Database:
         # Create all tables
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            
+        # Create performance indexes
+        await self._create_performance_indexes()
             
         self.logger.info("Database initialized successfully")
         
@@ -1031,3 +1034,36 @@ class Database:
                 'calculated_balance': calculated_balance,
                 'integrity_check': cached_balance == calculated_balance
             }
+    
+    async def _create_performance_indexes(self):
+        """Create database indexes for improved query performance."""
+        try:
+            async with self.async_session() as session:
+                # Critical index for ProfileService._fetch_cluster_stats query performance
+                await session.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_player_event_stats_player_updated 
+                    ON player_event_stats(player_id, updated_at DESC)
+                """))
+                
+                # Additional performance indexes from Phase 2.4 plan
+                indexes = [
+                    # For leaderboard ranking queries
+                    "CREATE INDEX IF NOT EXISTS idx_players_final_score ON players(final_score DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_players_overall_scoring_elo ON players(overall_scoring_elo DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_players_overall_raw_elo ON players(overall_raw_elo DESC)",
+                    
+                    # For match history queries
+                    "CREATE INDEX IF NOT EXISTS idx_elo_history_player_recorded ON elo_history(player_id, recorded_at DESC)",
+                    
+                    # For event-based queries
+                    "CREATE INDEX IF NOT EXISTS idx_player_event_stats_event_updated ON player_event_stats(event_id, updated_at DESC)"
+                ]
+                
+                for index_sql in indexes:
+                    await session.execute(text(index_sql))
+                
+                await session.commit()
+                self.logger.info("Performance indexes created successfully")
+                
+        except Exception as e:
+            self.logger.warning(f"Some indexes may already exist or failed to create: {e}")

@@ -478,6 +478,227 @@ class AdminCog(commands.Cog):
             for child in self.children:
                 child.disabled = True
     
+    class AdminResetMatchHistoryConfirmationView(discord.ui.View):
+        """Confirmation view for single player match history reset"""
+        
+        def __init__(self, admin_cog, admin_discord_id: int, player_id: int, player_name: str, reason: Optional[str] = None):
+            super().__init__(timeout=30.0)
+            self.admin_cog = admin_cog
+            self.admin_discord_id = admin_discord_id
+            self.player_id = player_id
+            self.player_name = player_name
+            self.reason = reason
+            self.confirmed = False
+        
+        @discord.ui.button(label="✅ Confirm Reset", style=discord.ButtonStyle.danger, emoji="⚠️")
+        async def confirm_reset(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user.id != self.admin_discord_id:
+                await interaction.response.send_message("❌ Only the command author can confirm this action.", ephemeral=True)
+                return
+            
+            self.confirmed = True
+            self.stop()
+            
+            # Disable all buttons
+            for child in self.children:
+                child.disabled = True
+            
+            await interaction.response.edit_message(view=self)
+            
+            try:
+                # Perform the reset
+                async with self.admin_cog.bot.db.get_session() as session:
+                    from bot.database.models import Player, EloHistory
+                    from sqlalchemy import select, delete
+                    
+                    # Get player
+                    player = await session.get(Player, self.player_id)
+                    if not player:
+                        await interaction.followup.send("❌ Player not found", ephemeral=True)
+                        return
+                    
+                    # Reset match statistics
+                    old_stats = {
+                        'matches_played': player.matches_played,
+                        'wins': player.wins,
+                        'losses': player.losses,
+                        'draws': player.draws,
+                        'current_streak': player.current_streak,
+                        'max_streak': player.max_streak
+                    }
+                    
+                    player.matches_played = 0
+                    player.wins = 0
+                    player.losses = 0
+                    player.draws = 0
+                    player.current_streak = 0
+                    player.max_streak = 0
+                    
+                    # Delete match history
+                    history_delete = delete(EloHistory).where(EloHistory.player_id == self.player_id)
+                    history_result = await session.execute(history_delete)
+                    records_deleted = history_result.rowcount
+                    
+                    # Delete PlayerEventStats to complete reset
+                    from bot.database.models import PlayerEventStats
+                    stats_delete = delete(PlayerEventStats).where(PlayerEventStats.player_id == self.player_id)
+                    stats_result = await session.execute(stats_delete)
+                    stats_deleted = stats_result.rowcount
+                    
+                    await session.commit()
+                
+                # Send success message
+                success_embed = discord.Embed(
+                    title="✅ Match History Reset Complete",
+                    description=f"Successfully reset match history for **{self.player_name}**",
+                    color=discord.Color.green()
+                )
+                success_embed.add_field(
+                    name="Statistics Reset",
+                    value=f"Matches: {old_stats['matches_played']} → 0\nW/L/D: {old_stats['wins']}/{old_stats['losses']}/{old_stats['draws']} → 0/0/0\nStreak: {old_stats['current_streak']} → 0",
+                    inline=False
+                )
+                success_embed.add_field(name="History Records Deleted", value=f"{records_deleted:,} records", inline=True)
+                success_embed.add_field(name="Event Stats Deleted", value=f"{stats_deleted:,} records", inline=True)
+                if self.reason:
+                    success_embed.add_field(name="Reason", value=self.reason, inline=False)
+                
+                await interaction.followup.send(embed=success_embed)
+                
+            except Exception as e:
+                self.admin_cog.logger.error(f"Error resetting match history for player {self.player_id}: {e}")
+                await interaction.followup.send(f"❌ Error resetting match history: {e}", ephemeral=True)
+        
+        @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary)
+        async def cancel_reset(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user.id != self.admin_discord_id:
+                await interaction.response.send_message("❌ Only the command author can cancel this action.", ephemeral=True)
+                return
+            
+            self.stop()
+            
+            # Disable all buttons
+            for child in self.children:
+                child.disabled = True
+            
+            cancel_embed = discord.Embed(
+                title="❌ Match History Reset Cancelled",
+                description="The match history reset operation has been cancelled.",
+                color=discord.Color.orange()
+            )
+            
+            await interaction.response.edit_message(embed=cancel_embed, view=self)
+        
+        async def on_timeout(self):
+            """Handle timeout - disable buttons"""
+            for child in self.children:
+                child.disabled = True
+    
+    class AdminResetAllMatchHistoryConfirmationView(discord.ui.View):
+        """Confirmation view for mass match history reset"""
+        
+        def __init__(self, admin_cog, admin_discord_id: int, total_players: int, total_history_records: int, reason: str):
+            super().__init__(timeout=60.0)  # Longer timeout for critical operation
+            self.admin_cog = admin_cog
+            self.admin_discord_id = admin_discord_id
+            self.total_players = total_players
+            self.total_history_records = total_history_records
+            self.reason = reason
+            self.confirmed = False
+        
+        @discord.ui.button(label="🚨 CONFIRM MASS RESET", style=discord.ButtonStyle.danger, emoji="⚠️")
+        async def confirm_mass_reset(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user.id != self.admin_discord_id:
+                await interaction.response.send_message("❌ Only the command author can confirm this action.", ephemeral=True)
+                return
+            
+            self.confirmed = True
+            self.stop()
+            
+            # Disable all buttons
+            for child in self.children:
+                child.disabled = True
+            
+            await interaction.response.edit_message(view=self)
+            
+            try:
+                # Perform the mass reset
+                async with self.admin_cog.bot.db.get_session() as session:
+                    from bot.database.models import Player, EloHistory
+                    from sqlalchemy import update, delete
+                    
+                    # Reset all player statistics
+                    player_update = update(Player).values(
+                        matches_played=0,
+                        wins=0,
+                        losses=0,
+                        draws=0,
+                        current_streak=0,
+                        max_streak=0
+                    )
+                    player_result = await session.execute(player_update)
+                    players_updated = player_result.rowcount
+                    
+                    # Delete all match history
+                    history_delete = delete(EloHistory)
+                    history_result = await session.execute(history_delete)
+                    records_deleted = history_result.rowcount
+                    
+                    # Delete all PlayerEventStats to complete reset
+                    from bot.database.models import PlayerEventStats
+                    stats_delete = delete(PlayerEventStats)
+                    stats_result = await session.execute(stats_delete)
+                    stats_deleted = stats_result.rowcount
+                    
+                    await session.commit()
+                
+                # Send success message
+                success_embed = discord.Embed(
+                    title="✅ Mass Match History Reset Complete",
+                    description="Successfully reset match history for ALL players",
+                    color=discord.Color.green()
+                )
+                success_embed.add_field(name="Players Updated", value=f"{players_updated:,} players", inline=True)
+                success_embed.add_field(name="History Records Deleted", value=f"{records_deleted:,} records", inline=True)
+                success_embed.add_field(name="Event Stats Deleted", value=f"{stats_deleted:,} records", inline=True)
+                success_embed.add_field(name="Reason", value=self.reason, inline=False)
+                success_embed.add_field(
+                    name="Reset Statistics",
+                    value="• All matches_played → 0\n• All wins/losses/draws → 0/0/0\n• All streaks → 0\n• All event stats and rankings → cleared",
+                    inline=False
+                )
+                
+                await interaction.followup.send(embed=success_embed)
+                
+            except Exception as e:
+                self.admin_cog.logger.error(f"Error in mass match history reset: {e}")
+                await interaction.followup.send(f"❌ Error performing mass reset: {e}", ephemeral=True)
+        
+        @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary)
+        async def cancel_reset(self, interaction: discord.Interaction, button: discord.ui.Button):
+            if interaction.user.id != self.admin_discord_id:
+                await interaction.response.send_message("❌ Only the command author can cancel this action.", ephemeral=True)
+                return
+            
+            self.stop()
+            
+            # Disable all buttons
+            for child in self.children:
+                child.disabled = True
+            
+            cancel_embed = discord.Embed(
+                title="❌ Mass Match History Reset Cancelled",
+                description="The mass match history reset operation has been cancelled.",
+                color=discord.Color.orange()
+            )
+            
+            await interaction.response.edit_message(embed=cancel_embed, view=self)
+        
+        async def on_timeout(self):
+            """Handle timeout - disable buttons"""
+            for child in self.children:
+                child.disabled = True
+    
     # ============================================================================
     # Cluster->Event Parsing Helper Functions
     # ============================================================================
@@ -925,6 +1146,200 @@ class AdminCog(commands.Cog):
     async def reset_all_elo_event_autocomplete(self, interaction: discord.Interaction, current: str):
         """Provide enhanced autocomplete with cluster->event format for disambiguation"""
         return await self._event_autocomplete_helper(interaction, current)
+    
+    @commands.hybrid_command(name='admin-reset-match-history', description="Reset a single player's match history and streaks")
+    @app_commands.describe(
+        player="The Discord member whose match history should be reset",
+        reason="Optional reason for the match history reset (for audit trail)"
+    )
+    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    async def reset_player_match_history(self, ctx, player: discord.Member, *, reason: Optional[str] = None):
+        """
+        Reset a single player's match history, streaks, and win/loss counts.
+        
+        Usage:
+        !admin-reset-match-history @player [reason]
+        !admin-reset-match-history @player "Data corruption fix"
+        
+        This will reset:
+        - Match statistics (wins, losses, draws, matches_played)
+        - Current streak and max streak
+        - Match history in EloHistory table
+        - Event statistics and cluster rankings
+        
+        Requires confirmation via button within 30 seconds.
+        """
+        try:
+            # Defer response for slash commands to prevent timeout
+            if ctx.interaction:
+                await ctx.defer(ephemeral=True)
+            
+            # Find player in database
+            async with self.bot.db.get_session() as session:
+                from bot.database.models import Player
+                from sqlalchemy import select
+                
+                query = select(Player).where(Player.discord_id == player.id)
+                result = await session.execute(query)
+                db_player = result.scalar_one_or_none()
+                
+                if not db_player:
+                    await ctx.send(embed=discord.Embed(
+                        title="❌ Player Not Found",
+                        description=f"{player.mention} is not registered in the tournament database.",
+                        color=discord.Color.red()
+                    ))
+                    return
+            
+            # Create confirmation embed
+            embed = discord.Embed(
+                title="⚠️ Reset Player Match History",
+                description=f"Are you sure you want to reset **{player.display_name}**'s match history?",
+                color=discord.Color.orange()
+            )
+            embed.add_field(name="Player", value=player.mention, inline=True)
+            embed.add_field(name="Player ID", value=str(db_player.id), inline=True)
+            embed.add_field(name="Current Stats", value=(
+                f"Matches: {db_player.matches_played}\n"
+                f"W/L/D: {db_player.wins}/{db_player.losses}/{db_player.draws}\n"
+                f"Streak: {db_player.current_streak}"
+            ), inline=False)
+            
+            if reason:
+                embed.add_field(name="Reason", value=reason, inline=False)
+            
+            embed.add_field(
+                name="⚠️ This will reset:",
+                value="• Match statistics (wins, losses, draws)\n• Current and max streaks\n• Match history records\n• Event statistics and rankings",
+                inline=False
+            )
+            embed.set_footer(text="Click ✅ to confirm or ❌ to cancel. This action expires in 30 seconds.")
+            
+            # Create confirmation view
+            view = self.AdminResetMatchHistoryConfirmationView(
+                admin_cog=self,
+                admin_discord_id=ctx.author.id,
+                player_id=db_player.id,
+                player_name=player.display_name,
+                reason=reason
+            )
+            
+            # Send confirmation message
+            confirmation_msg = await ctx.send(embed=embed, view=view)
+            
+            # Wait for confirmation
+            if await view.wait():
+                # Timeout
+                timeout_embed = discord.Embed(
+                    title="⏰ Timeout",
+                    description="Match history reset cancelled due to timeout.",
+                    color=discord.Color.orange()
+                )
+                await confirmation_msg.edit(embed=timeout_embed, view=None)
+                
+        except Exception as e:
+            self.logger.error(f"Error in admin-reset-match-history command: {e}")
+            await ctx.send(embed=discord.Embed(
+                title="❌ Command Error",
+                description=f"An unexpected error occurred: {str(e)}",
+                color=discord.Color.red()
+            ))
+    
+    @commands.hybrid_command(name='admin-reset-match-history-all', description="Reset ALL players' match history and streaks (DESTRUCTIVE)")
+    @app_commands.describe(
+        reason="Required reason for the mass match history reset (for audit trail)"
+    )
+    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    async def reset_all_match_history(self, ctx, *, reason: str):
+        """
+        Reset ALL players' match history, streaks, and win/loss counts.
+        
+        ⚠️ CRITICAL: This is a destructive operation requiring double confirmation.
+        
+        Usage:
+        !admin-reset-match-history-all [reason]
+        !admin-reset-match-history-all "Season reset - new tournament format"
+        
+        This will reset for ALL players:
+        - Match statistics (wins, losses, draws, matches_played)
+        - Current streak and max streak
+        - Match history in EloHistory table
+        - Event statistics and cluster rankings
+        
+        Requires button confirmation.
+        """
+        try:
+            # Defer response for slash commands to prevent timeout
+            if ctx.interaction:
+                await ctx.defer(ephemeral=True)
+            
+            if not reason or len(reason.strip()) < 5:
+                await ctx.send(embed=discord.Embed(
+                    title="❌ Invalid Input",
+                    description="A detailed reason (at least 5 characters) is required for mass match history reset.",
+                    color=discord.Color.red()
+                ))
+                return
+            
+            # Get count of players
+            async with self.bot.db.get_session() as session:
+                from bot.database.models import Player, EloHistory
+                from sqlalchemy import select, func
+                
+                # Count active players
+                player_count_result = await session.execute(select(func.count(Player.id)))
+                total_players = player_count_result.scalar()
+                
+                # Count total match history records
+                history_count_result = await session.execute(select(func.count(EloHistory.id)))
+                total_history_records = history_count_result.scalar()
+            
+            # Create confirmation embed
+            embed = discord.Embed(
+                title="⚠️ Reset ALL Players' Match History",
+                description="**DESTRUCTIVE OPERATION** - This will reset match history for ALL players!",
+                color=discord.Color.red()
+            )
+            embed.add_field(name="Affected Players", value=f"{total_players:,} players", inline=True)
+            embed.add_field(name="History Records", value=f"{total_history_records:,} records", inline=True)
+            embed.add_field(name="Reason", value=reason, inline=False)
+            
+            embed.add_field(
+                name="⚠️ This will reset for ALL players:",
+                value="• Match statistics (wins, losses, draws)\n• Current and max streaks\n• Match history records\n• Event statistics and rankings",
+                inline=False
+            )
+            embed.set_footer(text="Click ✅ to confirm or ❌ to cancel. This action expires in 60 seconds.")
+            
+            # Create confirmation view
+            view = self.AdminResetAllMatchHistoryConfirmationView(
+                admin_cog=self,
+                admin_discord_id=ctx.author.id,
+                total_players=total_players,
+                total_history_records=total_history_records,
+                reason=reason
+            )
+            
+            # Send confirmation message
+            confirmation_msg = await ctx.send(embed=embed, view=view)
+            
+            # Wait for confirmation
+            if await view.wait():
+                # Timeout
+                timeout_embed = discord.Embed(
+                    title="⏰ Timeout",
+                    description="Mass match history reset cancelled due to timeout.",
+                    color=discord.Color.orange()
+                )
+                await confirmation_msg.edit(embed=timeout_embed, view=None)
+            
+        except Exception as e:
+            self.logger.error(f"Error in admin-reset-match-history-all command: {e}")
+            await ctx.send(embed=discord.Embed(
+                title="❌ Command Error",
+                description=f"An unexpected error occurred: {str(e)}",
+                color=discord.Color.red()
+            ))
     
     @commands.hybrid_command(name='admin-undo-match', description="Undo a match and reverse its Elo effects")
     @app_commands.describe(

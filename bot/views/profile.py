@@ -8,15 +8,17 @@ import discord
 from discord.ui import View, Button
 from typing import Optional
 from bot.data_models.profile import ProfileData
+from bot.utils.embeds import build_profile_embed, build_clusters_overview_embed, build_leaderboard_table_embed
 
 
 class ProfileView(View):
     """Interactive view for player profiles with navigation buttons."""
     
-    def __init__(self, target_user_id: int, profile_service, bot, *, timeout: int = 300):
+    def __init__(self, target_user_id: int, profile_service, leaderboard_service, bot, *, timeout: int = 300):
         super().__init__(timeout=timeout)
         self.target_user_id = target_user_id
         self.profile_service = profile_service
+        self.leaderboard_service = leaderboard_service
         self.bot = bot
         self.current_view = "main"  # main, clusters, history, tickets
         
@@ -112,7 +114,7 @@ class ProfileView(View):
             if not target_member:
                 target_member = await self.bot.fetch_user(self.target_user_id)
             
-            embed = self._build_main_profile_embed(profile_data, target_member)
+            embed = build_profile_embed(profile_data, target_member)
             
             await interaction.followup.edit_message(
                 message_id=interaction.message.id,
@@ -131,24 +133,8 @@ class ProfileView(View):
             # Fetch fresh data
             profile_data = await self.profile_service.get_profile_data(self.target_user_id)
             
-            # Build clusters embed
-            embed = discord.Embed(
-                title=f"Cluster Overview - {profile_data.display_name}",
-                color=profile_data.profile_color or discord.Color.blue()
-            )
-            
-            # Add all clusters with pagination if needed
-            for i, cluster in enumerate(profile_data.all_clusters, 1):
-                skull = "💀 " if cluster.is_below_threshold else ""
-                embed.add_field(
-                    name=f"{i}. {cluster.cluster_name}",
-                    value=f"{skull}Scoring: {cluster.scoring_elo} | Raw: {cluster.raw_elo}\n"
-                          f"Matches: {cluster.matches_played} | Rank: #{cluster.rank_in_cluster}",
-                    inline=True
-                )
-            
-            if not profile_data.all_clusters:
-                embed.description = "No cluster data available yet."
+            # Build clusters embed with field limit safety
+            embed = build_clusters_overview_embed(profile_data)
             
             await interaction.followup.edit_message(
                 message_id=interaction.message.id,
@@ -227,92 +213,51 @@ class ProfileView(View):
     
     async def _jump_to_leaderboard(self, interaction: discord.Interaction):
         """Navigate to leaderboard showing this player."""
-        # TODO: Implement leaderboard navigation
-        await interaction.followup.send(
-            "Leaderboard navigation will be implemented in the next phase!",
-            ephemeral=True
-        )
+        try:
+            
+            # Get player's rank and surrounding leaderboard
+            player_rank = await self.leaderboard_service.get_player_rank(self.target_user_id)
+            
+            if player_rank:
+                # Calculate which page the player is on (10 players per page)
+                page_number = ((player_rank - 1) // 10) + 1
+                
+                # Get that page of the leaderboard
+                leaderboard_data = await self.leaderboard_service.get_page(
+                    leaderboard_type="overall",
+                    sort_by="final_score", 
+                    page=page_number,
+                    page_size=10
+                )
+                
+                # Build leaderboard embed
+                embed = self._build_leaderboard_embed(leaderboard_data)
+                embed.description += f"\n\n**Showing leaderboard around rank #{player_rank}**"
+                
+                # Create leaderboard view
+                from bot.views.leaderboard import LeaderboardView
+                view = LeaderboardView(
+                    leaderboard_service=self.leaderboard_service,
+                    leaderboard_type="overall",
+                    sort_by="final_score",
+                    cluster_name=None,
+                    event_name=None,
+                    current_page=page_number,
+                    total_pages=leaderboard_data.total_pages
+                )
+                
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            else:
+                await interaction.followup.send(
+                    "Could not find your rank on the leaderboard.", 
+                    ephemeral=True
+                )
+        except Exception as e:
+            await interaction.followup.send(
+                f"Error loading leaderboard: {e}", 
+                ephemeral=True
+            )
     
-    def _build_main_profile_embed(self, profile_data: ProfileData, target_member) -> discord.Embed:
-        """Build the main profile embed with all stats."""
-        # Create main embed
-        embed = discord.Embed(
-            title=f"🏆 Tournament Profile: {profile_data.display_name}",
-            color=profile_data.profile_color or discord.Color.blue()
-        )
-        
-        # Add user avatar
-        if target_member:
-            embed.set_thumbnail(url=target_member.display_avatar.url)
-        
-        # Core stats section
-        embed.add_field(
-            name="📊 Core Statistics",
-            value=(
-                f"**Final Score:** {profile_data.final_score:,}\n"
-                f"**Scoring Elo:** {profile_data.overall_scoring_elo:,}\n"
-                f"**Raw Elo:** {profile_data.overall_raw_elo:,}\n"
-                f"**Server Rank:** #{profile_data.server_rank:,} / {profile_data.total_players:,}"
-            ),
-            inline=True
-        )
-        
-        # Match stats section
-        streak_text = f" ({profile_data.current_streak})" if profile_data.current_streak else ""
-        embed.add_field(
-            name="⚔️ Match History",
-            value=(
-                f"**Total Matches:** {profile_data.total_matches}\n"
-                f"**Wins:** {profile_data.wins} | **Losses:** {profile_data.losses}\n"
-                f"**Win Rate:** {profile_data.win_rate:.1%}{streak_text}"
-            ),
-            inline=True
-        )
-        
-        # Tickets section
-        embed.add_field(
-            name="🎫 Tickets",
-            value=f"**Balance:** {profile_data.ticket_balance:,}",
-            inline=True
-        )
-        
-        # Top clusters preview
-        if profile_data.top_clusters:
-            top_cluster_text = "\n".join([
-                f"{i+1}. {cluster.cluster_name}: {cluster.scoring_elo} elo"
-                for i, cluster in enumerate(profile_data.top_clusters[:3])
-            ])
-            embed.add_field(
-                name="🏅 Top Clusters",
-                value=top_cluster_text,
-                inline=True
-            )
-        
-        # Bottom clusters (Areas for Improvement)
-        if profile_data.bottom_clusters:
-            # Calculate proper ranking for bottom clusters
-            total_clusters = len(profile_data.all_clusters)
-            bottom_clusters_to_show = profile_data.bottom_clusters[-3:]  # Last 3 clusters
-            bottom_cluster_text = "\n".join([
-                f"{total_clusters - len(bottom_clusters_to_show) + i + 1}. {cluster.cluster_name}: {cluster.scoring_elo} elo"
-                for i, cluster in enumerate(bottom_clusters_to_show)
-            ])
-            embed.add_field(
-                name="💀 Areas for Improvement",
-                value=bottom_cluster_text,
-                inline=True
-            )
-        
-        # Ghost player warning
-        if profile_data.is_ghost:
-            embed.add_field(
-                name="⚠️ Status",
-                value="This player has left the server but their data is preserved.",
-                inline=False
-            )
-        
-        embed.set_footer(
-            text="Use the buttons below to explore detailed statistics"
-        )
-        
-        return embed
+    def _build_leaderboard_embed(self, leaderboard_data) -> discord.Embed:
+        """Build leaderboard embed using shared utility."""
+        return build_leaderboard_table_embed(leaderboard_data)

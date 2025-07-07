@@ -28,7 +28,7 @@ def build_profile_embed(profile_data: ProfileData, target_member: Optional[disco
     # Create main embed with special gold color for #1 ranked player
     embed_color = discord.Color.gold() if profile_data.server_rank == 1 else (profile_data.profile_color or discord.Color.blue())
     embed = discord.Embed(
-        title=f"🏆 Tournament Profile: {profile_data.display_name}",
+        title=f"Profile: {profile_data.display_name}",
         color=embed_color
     )
     
@@ -38,7 +38,7 @@ def build_profile_embed(profile_data: ProfileData, target_member: Optional[disco
     
     # Core stats section
     embed.add_field(
-        name="📊 Core Statistics",
+        name="📊 Core Stats",
         value=(
             f"**Final Score:** {profile_data.final_score:,}\n"
             f"**Scoring Elo:** {profile_data.overall_scoring_elo:,}\n"
@@ -50,7 +50,7 @@ def build_profile_embed(profile_data: ProfileData, target_member: Optional[disco
     
     # Match stats section (no draws) with streak always displayed
     embed.add_field(
-        name="⚔️ Match History",
+        name="⚔️ Match Stats",
         value=(
             f"**Total Matches:** {profile_data.total_matches}\n"
             f"**Wins:** {profile_data.wins} | **Losses:** {profile_data.losses}\n"
@@ -74,7 +74,7 @@ def build_profile_embed(profile_data: ProfileData, target_member: Optional[disco
             for i, cluster in enumerate(profile_data.top_clusters[:3])
         ])
         embed.add_field(
-            name="🏅 Top Clusters",
+            name="🏅 That's Why He's the Goat",
             value=top_cluster_text,
             inline=True
         )
@@ -90,7 +90,7 @@ def build_profile_embed(profile_data: ProfileData, target_member: Optional[disco
             for i, cluster in enumerate(profile_data.bottom_clusters)
         ])
         embed.add_field(
-            name=f"{UIConstants.SKULL_EMOJI} Areas for Improvement",
+            name=f"{UIConstants.SKULL_EMOJI} You Lost!",
             value=bottom_cluster_text,
             inline=True
         )

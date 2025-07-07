@@ -17,7 +17,7 @@ INITIAL_CONFIGS = {
     'elo.k_factor_standard': 20,
     'elo.starting_elo': 1000,
     'elo.provisional_match_threshold': 5,
-    'elo.scoring_elo_threshold': 1000,
+    'elo.raw_elo_threshold': 1000,
     'elo.leaderboard_base_elo': 1000,
     
     # Metagame (5 parameters)
@@ -81,6 +81,7 @@ INITIAL_CONFIGS = {
     'system.elo_per_sigma': 200,
     'system.cache_ttl_hierarchy': 900,
     'system.cache_ttl_shop': 300,
+    'system.cache_ttl_profile': 30,
     'system.cache_max_size': 1000,
     'system.owner_discord_id': None,
     'system.admin_role_name': 'tournament-admin',

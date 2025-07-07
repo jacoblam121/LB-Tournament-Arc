@@ -16,6 +16,7 @@ from bot.services.leaderboard import LeaderboardService
 from bot.views.profile import ProfileView
 from bot.views.leaderboard import LeaderboardView
 from bot.services.rate_limiter import rate_limit
+from bot.utils.embeds import build_profile_embed, build_leaderboard_table_embed
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,13 +53,14 @@ class PlayerCog(commands.Cog):
                                        is_ghost=True, 
                                        display_name=f"{profile_data.display_name} (Left Server)")
             
-            # Build main profile embed
-            embed = self._build_profile_embed(profile_data, target_member)
+            # Build main profile embed using shared utility
+            embed = build_profile_embed(profile_data, target_member)
             
             # Create interactive view
             view = ProfileView(
                 target_user_id=target_member.id,
                 profile_service=self.profile_service,
+                leaderboard_service=self.leaderboard_service,
                 bot=self.bot
             )
             
@@ -87,89 +89,6 @@ class PlayerCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
     
-    def _build_profile_embed(self, profile_data, target_member: discord.Member) -> discord.Embed:
-        """Build the main profile embed with all stats."""
-        # Create main embed
-        embed = discord.Embed(
-            title=f"🏆 Tournament Profile: {profile_data.display_name}",
-            color=profile_data.profile_color or discord.Color.blue()
-        )
-        
-        # Add user avatar
-        if target_member:
-            embed.set_thumbnail(url=target_member.display_avatar.url)
-        
-        # Core stats section
-        embed.add_field(
-            name="📊 Core Statistics",
-            value=(
-                f"**Final Score:** {profile_data.final_score:,}\n"
-                f"**Scoring Elo:** {profile_data.overall_scoring_elo:,}\n"
-                f"**Raw Elo:** {profile_data.overall_raw_elo:,}\n"
-                f"**Server Rank:** #{profile_data.server_rank:,} / {profile_data.total_players:,}"
-            ),
-            inline=True
-        )
-        
-        # Match stats section
-        streak_text = f" ({profile_data.current_streak})" if profile_data.current_streak else ""
-        embed.add_field(
-            name="⚔️ Match History",
-            value=(
-                f"**Total Matches:** {profile_data.total_matches}\n"
-                f"**Wins:** {profile_data.wins} | **Losses:** {profile_data.losses}\n"
-                f"**Win Rate:** {profile_data.win_rate:.1%}{streak_text}"
-            ),
-            inline=True
-        )
-        
-        # Tickets section
-        embed.add_field(
-            name="🎫 Tickets",
-            value=f"**Balance:** {profile_data.ticket_balance:,}",
-            inline=True
-        )
-        
-        # Top clusters preview
-        if profile_data.top_clusters:
-            top_cluster_text = "\n".join([
-                f"{i+1}. {cluster.cluster_name}: {cluster.scoring_elo} elo"
-                for i, cluster in enumerate(profile_data.top_clusters[:3])
-            ])
-            embed.add_field(
-                name="🏅 Top Clusters",
-                value=top_cluster_text,
-                inline=True
-            )
-        
-        # Bottom clusters (Areas for Improvement)
-        if profile_data.bottom_clusters:
-            # Calculate proper ranking for bottom clusters
-            total_clusters = len(profile_data.all_clusters)
-            bottom_clusters_to_show = profile_data.bottom_clusters[-3:]  # Last 3 clusters
-            bottom_cluster_text = "\n".join([
-                f"{total_clusters - len(bottom_clusters_to_show) + i + 1}. {cluster.cluster_name}: {cluster.scoring_elo} elo"
-                for i, cluster in enumerate(bottom_clusters_to_show)
-            ])
-            embed.add_field(
-                name="💀 Areas for Improvement",
-                value=bottom_cluster_text,
-                inline=True
-            )
-        
-        # Ghost player warning
-        if profile_data.is_ghost:
-            embed.add_field(
-                name="⚠️ Status",
-                value="This player has left the server but their data is preserved.",
-                inline=False
-            )
-        
-        embed.set_footer(
-            text="Use the buttons below to explore detailed statistics"
-        )
-        
-        return embed
     
     @app_commands.command(name="leaderboard", description="View tournament leaderboards")
     @app_commands.describe(
@@ -284,48 +203,19 @@ class PlayerCog(commands.Cog):
             return []
     
     def _build_leaderboard_embed(self, leaderboard_data) -> discord.Embed:
-        """Build the initial leaderboard embed."""
-        title = f"{leaderboard_data.leaderboard_type.title()} Leaderboard"
+        """Build the initial leaderboard embed using shared utility."""
+        # Build title suffix for cluster/event specific leaderboards
+        title_suffix = ""
         if leaderboard_data.cluster_name:
-            title += f" - {leaderboard_data.cluster_name}"
+            title_suffix += f" - {leaderboard_data.cluster_name}"
         if leaderboard_data.event_name:
-            title += f" - {leaderboard_data.event_name}"
+            title_suffix += f" - {leaderboard_data.event_name}"
         
-        embed = discord.Embed(
-            title=title,
-            description=f"Sorted by: **{leaderboard_data.sort_by.replace('_', ' ').title()}**",
-            color=discord.Color.gold()
+        return build_leaderboard_table_embed(
+            leaderboard_data,
+            title_suffix=title_suffix,
+            empty_message="The leaderboard is empty for this category."
         )
-        
-        if not leaderboard_data.entries:
-            embed.description += "\n\nThe leaderboard is empty for this category."
-            return embed
-        
-        # Table header
-        lines = ["```"]
-        lines.append(f"{'Rank':<6} {'Player':<20} {'Score':<8} {'S.Elo':<8} {'R.Elo':<8}")
-        lines.append("-" * 60)
-        
-        # Table rows
-        for entry in leaderboard_data.entries:
-            skull = "💀" if entry.overall_raw_elo < 1000 else "  "
-            player_name = entry.display_name[:18]  # Truncate long names
-            
-            lines.append(
-                f"{entry.rank:<6} {player_name:<20} "
-                f"{entry.final_score:<8} {entry.overall_scoring_elo:<8} "
-                f"{skull}{entry.overall_raw_elo:<6}"
-            )
-        
-        lines.append("```")
-        embed.description += "\n" + "\n".join(lines)
-        
-        # Footer with pagination info
-        embed.set_footer(
-            text=f"Page {leaderboard_data.current_page}/{leaderboard_data.total_pages} | Total Players: {leaderboard_data.total_players}"
-        )
-        
-        return embed
     
     # Legacy prefix commands - keep for backward compatibility during transition
     @commands.command(name='register', aliases=['signup'])

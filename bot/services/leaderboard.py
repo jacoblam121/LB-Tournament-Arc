@@ -188,7 +188,7 @@ class LeaderboardService(BaseService):
                 getattr(Player, 'shard_bonus', Player.final_score).label('shard_bonus'),
                 getattr(Player, 'shop_bonus', Player.final_score).label('shop_bonus'),
                 getattr(Player, 'is_ghost', case((Player.id.isnot(None), False), else_=False)).label('is_ghost'),
-                func.rank().over(order_by=PlayerEventStats.scoring_elo.desc()).label('rank')
+                func.rank().over(order_by=PlayerEventStats.raw_elo.desc()).label('rank')
             )
             
         elif leaderboard_type == "event" and event_name:
@@ -209,7 +209,7 @@ class LeaderboardService(BaseService):
                 getattr(Player, 'shard_bonus', Player.final_score).label('shard_bonus'),
                 getattr(Player, 'shop_bonus', Player.final_score).label('shop_bonus'),
                 getattr(Player, 'is_ghost', case((Player.id.isnot(None), False), else_=False)).label('is_ghost'),
-                func.rank().over(order_by=PlayerEventStats.scoring_elo.desc()).label('rank')
+                func.rank().over(order_by=PlayerEventStats.raw_elo.desc()).label('rank')
             )
         
         # Filter ghosts unless specifically included
@@ -241,18 +241,25 @@ class LeaderboardService(BaseService):
     
     async def get_player_rank(
         self,
-        user_id: int,
+        discord_id: int,
         sort_by: str = "final_score"
     ) -> Optional[int]:
-        """Get a specific player's rank efficiently."""
+        """Get a specific player's rank efficiently using discord_id."""
         async with self.get_session() as session:
+            # First get the player's internal ID from discord_id
+            player_query = select(Player.id).where(Player.discord_id == discord_id)
+            player_id = await session.scalar(player_query)
+            
+            if not player_id:
+                return None
+            
             # Use CTE for rank calculation
             rank_cte = self._build_ranking_query(
                 "overall", sort_by, None, None, True
             ).cte('ranks')
             
             query = select(rank_cte.c.rank).where(
-                rank_cte.c.player_id == user_id
+                rank_cte.c.player_id == player_id
             )
             
             return await session.scalar(query)

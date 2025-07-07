@@ -21,6 +21,7 @@ import json
 from bot.database.match_operations import MatchOperations, MatchOperationError, MatchStateError
 from bot.operations.player_operations import PlayerOperations, PlayerOperationError
 from bot.database.models import Match, MatchParticipant, MatchStatus, ConfirmationStatus, Player, Event
+from bot.services.profile import ProfileService
 from bot.utils.logger import setup_logger
 from bot.config import Config
 
@@ -75,11 +76,12 @@ class PlacementModal(discord.ui.Modal):
     form-based placement entry instead of string parsing.
     """
     
-    def __init__(self, match_id: int, participants: List[MatchParticipant], match_ops: MatchOperations, force: bool = False):
+    def __init__(self, cog: 'MatchCommandsCog', match_id: int, participants: List[MatchParticipant], match_ops: MatchOperations, force: bool = False):
         """
         Initialize modal with dynamic fields based on participants.
         
         Args:
+            cog: MatchCommandsCog instance for accessing business logic methods
             match_id: ID of the match being reported
             participants: List of MatchParticipant objects (max 5)
             match_ops: MatchOperations instance for result recording
@@ -91,6 +93,7 @@ class PlacementModal(discord.ui.Modal):
         
         super().__init__(title=title, timeout=900)  # 15 minute timeout
         
+        self.cog = cog
         self.match_id = match_id
         self.participants = participants
         self.match_ops = match_ops
@@ -182,6 +185,9 @@ class PlacementModal(discord.ui.Modal):
                     results=results_list
                 )
                 
+                # Update streaks for all participants
+                await self.cog._update_participant_streaks(match)
+                
                 # Create success embed with owner indication
                 embed = await self._create_success_embed(match, interaction, force_completion=True)
                 await interaction.followup.send(embed=embed)
@@ -204,7 +210,7 @@ class PlacementModal(discord.ui.Modal):
                 )
                 
                 # Create confirmation view with buttons
-                view = MatchConfirmationView(proposal.id, self.match_ops)
+                view = MatchConfirmationView(proposal.id, self.match_ops, self.cog)
                 
                 # Get current confirmation status (proposer is auto-confirmed)
                 _, confirmations = await self.match_ops.check_all_confirmed(self.match_id)
@@ -390,18 +396,20 @@ class MatchConfirmationView(discord.ui.View):
     proposed match results before they become final.
     """
     
-    def __init__(self, proposal_id: int, match_ops: MatchOperations, timeout: float = 86400.0):
+    def __init__(self, proposal_id: int, match_ops: MatchOperations, cog=None, timeout: float = 86400.0):
         """
         Initialize confirmation view.
         
         Args:
             proposal_id: ID of the MatchResultProposal to confirm
             match_ops: MatchOperations instance for database operations
+            cog: Optional MatchCommandsCog instance for streak updates
             timeout: View timeout in seconds (default 24 hours)
         """
         super().__init__(timeout=timeout)
         self.proposal_id = proposal_id
         self.match_ops = match_ops
+        self.cog = cog
         self.logger = setup_logger(f"{__name__}.MatchConfirmationView")
     
     @discord.ui.button(label="✅ Confirm", style=discord.ButtonStyle.green, custom_id="confirm_results")
@@ -503,6 +511,10 @@ class MatchConfirmationView(discord.ui.View):
             if all_confirmed:
                 # Finalize results
                 completed_match = await self.match_ops.finalize_confirmed_results(match.id)
+                
+                # Update streaks for all participants
+                if self.cog:
+                    await self.cog._update_participant_streaks(completed_match)
                 
                 # Update message with final results
                 embed = await self._create_completed_embed(completed_match)
@@ -697,6 +709,7 @@ class MatchCommandsCog(commands.Cog):
         # Dependency injection: Operations will be initialized when database is ready
         self.match_ops = None
         self.player_ops = None
+        self.profile_service = None
         
 
     @commands.Cog.listener()
@@ -706,9 +719,27 @@ class MatchCommandsCog(commands.Cog):
         if self.bot.db:
             self.match_ops = MatchOperations(self.bot.db)
             self.player_ops = PlayerOperations(self.bot.db)
+            self.profile_service = ProfileService(self.bot.db.session_factory, self.bot.config_service)
             print("MatchCommandsCog: All operations initialized successfully")
         else:
             print("MatchCommandsCog: Warning - Database not available")
+    
+    async def _update_participant_streaks(self, match: Match):
+        """Update current streaks for all match participants."""
+        if not self.profile_service:
+            self.logger.warning("ProfileService not available for streak updates")
+            return
+        
+        # Use a new session for streak updates
+        async with self.bot.db.get_session() as session:
+            for participant in match.participants:
+                try:
+                    await self.profile_service.update_player_streak(participant.player_id, session)
+                except Exception as e:
+                    self.logger.error(f"Failed to update streak for player {participant.player_id}: {e}")
+            
+            # Commit all streak updates
+            await session.commit()
     
     def _check_match_permissions(self, match: Match, user: discord.User | discord.Member) -> tuple[bool, Optional[discord.Embed]]:
         """
@@ -1036,7 +1067,7 @@ class MatchCommandsCog(commands.Cog):
                     # Phase 2.2a: Show Modal for ≤5 Players
                     # ============================================================================
                     try:
-                        modal = PlacementModal(match_id, match.participants, self.match_ops, force)
+                        modal = PlacementModal(self, match_id, match.participants, self.match_ops, force)
                         await ctx.interaction.response.send_modal(modal)
                         self.logger.info(f"Modal: Displayed placement modal for Match {match_id} with {participant_count} participants")
                         return  # Modal handles the rest
@@ -1289,6 +1320,9 @@ class MatchCommandsCog(commands.Cog):
                     results=results_list
                 )
                 
+                # Update streaks for all participants
+                await self._update_participant_streaks(match)
+                
                 # Success response will be handled below with admin indication
                 
             else:
@@ -1305,7 +1339,7 @@ class MatchCommandsCog(commands.Cog):
                 )
                 
                 # Create confirmation view with buttons
-                view = MatchConfirmationView(proposal.id, self.match_ops)
+                view = MatchConfirmationView(proposal.id, self.match_ops, self)
                 
                 # Get current confirmation status (proposer is auto-confirmed)
                 _, confirmations = await self.match_ops.check_all_confirmed(match_id)

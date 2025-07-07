@@ -17,7 +17,7 @@ class ClusterStats:
     scoring_elo: int
     raw_elo: int
     matches_played: int
-    rank_in_cluster: int
+    rank_in_cluster: Optional[int]  # None for unplayed clusters, int for ranked
     is_below_threshold: bool  # For 💀 emoji
 
 
@@ -59,7 +59,7 @@ class ProfileData:
     losses: int
     draws: int
     win_rate: float
-    current_streak: Optional[str]  # W3, L1, etc. or None if no streak
+    current_streak: str  # W0 for baseline, W1+ for wins, L1+ for losses
     
     # Cluster performance
     top_clusters: List[ClusterStats]  # Top 3
