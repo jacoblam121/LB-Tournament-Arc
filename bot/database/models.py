@@ -93,6 +93,13 @@ class Player(Base):
     losses = Column(Integer, default=0)
     draws = Column(Integer, default=0)
     
+    # Global aggregated stats for Phase 2.1.1+ (calculated from PlayerEventStats)
+    final_score = Column(Integer, default=0)         # Total tournament score (scoring_elo + bonuses)
+    overall_scoring_elo = Column(Integer, default=1000)  # Aggregated scoring Elo across all events
+    overall_raw_elo = Column(Integer, default=1000)      # Aggregated raw Elo across all events
+    shard_bonus = Column(Integer, default=0)         # Total shard bonuses earned
+    shop_bonus = Column(Integer, default=0)          # Total shop bonuses applied
+    
     # Meta-game fields for leverage system and streak tracking
     active_leverage_token = Column(String(50), nullable=True)  # e.g., "2x_standard", "1.5x_forced"
     current_streak = Column(Integer, default=0)               # Current win/loss streak

@@ -286,7 +286,7 @@ game_mechanics: # 12 CRITICAL parameters for hidden activation system
   🏆 Final Score: 2150          | 🌍 Server Rank: #1/50      | 🎟️ Tickets: 350
   📈 Overall Scoring Elo: 1950  | 📊 Overall Raw Elo: 1950
   ⚔️ Match Record: W:42 L:20 D:3 (67.7% Winrate)
-  🔥 Current Streak: W3 (only show if ≥3)
+  🔥 Current Streak: W3
   
   👑 Top 3 Clusters:            | 💀 Areas for Improvement:
   1. Fighting Games (2100)      | 18. Running (1500)
