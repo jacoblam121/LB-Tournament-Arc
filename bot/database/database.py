@@ -1056,7 +1056,12 @@ class Database:
                     "CREATE INDEX IF NOT EXISTS idx_elo_history_player_recorded ON elo_history(player_id, recorded_at DESC)",
                     
                     # For event-based queries
-                    "CREATE INDEX IF NOT EXISTS idx_player_event_stats_event_updated ON player_event_stats(event_id, updated_at DESC)"
+                    "CREATE INDEX IF NOT EXISTS idx_player_event_stats_event_updated ON player_event_stats(event_id, updated_at DESC)",
+                    
+                    # Phase 2.3 optimization: Cluster/Event leaderboard join performance
+                    "CREATE INDEX IF NOT EXISTS idx_events_cluster_id ON events(cluster_id)",
+                    "CREATE INDEX IF NOT EXISTS idx_player_event_stats_joins ON player_event_stats(player_id, event_id)",
+                    "CREATE INDEX IF NOT EXISTS idx_clusters_name ON clusters(name)"
                 ]
                 
                 for index_sql in indexes:

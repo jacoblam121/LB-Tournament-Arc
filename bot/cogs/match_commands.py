@@ -22,6 +22,8 @@ from bot.database.match_operations import MatchOperations, MatchOperationError, 
 from bot.operations.player_operations import PlayerOperations, PlayerOperationError
 from bot.database.models import Match, MatchParticipant, MatchStatus, ConfirmationStatus, Player, Event
 from bot.services.profile import ProfileService
+from bot.services.elo_hierarchy_cache import CachedEloHierarchyService
+from bot.utils.error_embeds import ErrorEmbeds
 from bot.utils.logger import setup_logger
 from bot.config import Config
 
@@ -234,21 +236,11 @@ class PlacementModal(discord.ui.Modal):
             
         except MatchOperationError as e:
             self.logger.error(f"Modal: Match operation failed for Match {self.match_id}: {e}")
-            embed = discord.Embed(
-                title="❌ Failed to Record Results",
-                description=str(e),
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=ErrorEmbeds.command_error(str(e)), ephemeral=True)
             
         except Exception as e:
             self.logger.error(f"Modal: Unexpected error for Match {self.match_id}: {e}")
-            embed = discord.Embed(
-                title="❌ Unexpected Error",
-                description="An unexpected error occurred while recording results.",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=ErrorEmbeds.command_error("An unexpected error occurred while recording results."), ephemeral=True)
     
     async def on_timeout(self):
         """
@@ -719,13 +711,16 @@ class MatchCommandsCog(commands.Cog):
         if self.bot.db:
             self.match_ops = MatchOperations(self.bot.db)
             self.player_ops = PlayerOperations(self.bot.db)
-            self.profile_service = ProfileService(self.bot.db.session_factory, self.bot.config_service)
+            # Initialize EloHierarchyService with caching wrapper
+            self.elo_hierarchy_service = CachedEloHierarchyService(self.bot.db.session_factory, self.bot.config_service)
+            # Initialize profile service with hierarchy service
+            self.profile_service = ProfileService(self.bot.db.session_factory, self.bot.config_service, self.elo_hierarchy_service)
             print("MatchCommandsCog: All operations initialized successfully")
         else:
             print("MatchCommandsCog: Warning - Database not available")
     
     async def _update_participant_streaks(self, match: Match):
-        """Update current streaks for all match participants."""
+        """Update current streaks for all match participants and invalidate caches."""
         if not self.profile_service:
             self.logger.warning("ProfileService not available for streak updates")
             return
@@ -740,6 +735,11 @@ class MatchCommandsCog(commands.Cog):
             
             # Commit all streak updates
             await session.commit()
+        
+        # Phase 2.4: Invalidate profile and hierarchy caches for all participants
+        for participant in match.participants:
+            self.profile_service.invalidate_cache(participant.player.discord_id)
+            self.logger.debug(f"Invalidated cache for player {participant.player.discord_id}")
     
     def _check_match_permissions(self, match: Match, user: discord.User | discord.Member) -> tuple[bool, Optional[discord.Embed]]:
         """

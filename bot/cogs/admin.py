@@ -1597,6 +1597,150 @@ class AdminCog(commands.Cog):
         output += f"\nTotal: {total_params} parameters\n```"
         
         await interaction.response.send_message(output, ephemeral=True)
+    
+    @commands.hybrid_command(name='admin-sync-player-stats', description="Sync all player overall stats from event stats")
+    @app_commands.describe(
+        reason="Optional reason for the sync (for audit trail)"
+    )
+    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    async def sync_player_stats(self, ctx, *, reason: Optional[str] = None):
+        """
+        Sync all player overall stats from their event-specific stats.
+        
+        This recalculates:
+        - overall_scoring_elo from event stats using weighted formula
+        - overall_raw_elo from event stats
+        - final_score = overall_scoring_elo + bonuses
+        
+        Useful for:
+        - Initial migration after deploying the fix
+        - Fixing data inconsistencies
+        - Recalculating after manual adjustments
+        """
+        try:
+            # Defer response for slash commands
+            if ctx.interaction:
+                await ctx.defer()
+            
+            # Send initial status
+            embed = discord.Embed(
+                title="🔄 Starting Player Stats Sync",
+                description="Recalculating overall stats for all players...",
+                color=discord.Color.blue()
+            )
+            status_msg = await ctx.send(embed=embed)
+            
+            # Perform the sync
+            from bot.services.player_stats_sync import PlayerStatsSyncService
+            sync_service = PlayerStatsSyncService()
+            
+            async with self.bot.db.get_session() as session:
+                count = await sync_service.sync_all_players(session)
+                await session.commit()
+            
+            # Invalidate leaderboard cache after stats are updated
+            if leaderboard_cog := self.bot.get_cog('LeaderboardCog'):
+                leaderboard_cog.leaderboard_service.clear_cache()
+            
+            # Note: Audit logging removed - not critical for this utility function
+            
+            # Update status
+            embed = discord.Embed(
+                title="✅ Player Stats Sync Complete",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Players Synced", value=count, inline=True)
+            if reason:
+                embed.add_field(name="Reason", value=reason, inline=False)
+            embed.set_footer(text="Overall ELO and final scores have been recalculated")
+            
+            await status_msg.edit(embed=embed)
+            
+        except Exception as e:
+            self.logger.error(f"Error in admin-sync-player-stats: {e}")
+            await ctx.send(embed=discord.Embed(
+                title="❌ Sync Failed",
+                description=f"An error occurred: {str(e)}",
+                color=discord.Color.red()
+            ))
+    
+    @commands.hybrid_command(name='admin-clear-cache', description="Clear all service caches (profile, leaderboard, etc.)")
+    @app_commands.describe(
+        service="Optional: specific service to clear cache for ('profile', 'leaderboard', 'all')"
+    )
+    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    async def clear_cache(self, ctx, service: Optional[str] = "all"):
+        """
+        Clear service caches to force fresh data retrieval.
+        
+        This is useful when:
+        - Data appears stale or outdated
+        - After manual database updates
+        - For troubleshooting caching issues
+        
+        Services:
+        - profile: Player profile data cache
+        - leaderboard: Leaderboard data cache
+        - all: Clear all caches (default)
+        """
+        try:
+            # Defer response for slash commands
+            if ctx.interaction:
+                await ctx.defer(ephemeral=True)
+            
+            cleared = []
+            
+            # Clear profile service cache
+            if service in ["profile", "all"]:
+                if player_cog := self.bot.get_cog('PlayerCog'):
+                    if hasattr(player_cog, 'profile_service'):
+                        # Clear the entire cache
+                        player_cog.profile_service._cache.clear()
+                        player_cog.profile_service._cache_timestamps.clear()
+                        cleared.append("Profile")
+                        self.logger.info(f"Profile cache cleared by {ctx.author}")
+            
+            # Clear leaderboard service cache
+            if service in ["leaderboard", "all"]:
+                if leaderboard_cog := self.bot.get_cog('LeaderboardCog'):
+                    if hasattr(leaderboard_cog, 'leaderboard_service'):
+                        leaderboard_cog.leaderboard_service.clear_cache()
+                        cleared.append("Leaderboard")
+                        self.logger.info(f"Leaderboard cache cleared by {ctx.author}")
+            
+            # Clear ELO hierarchy cache if available
+            if service in ["all"]:
+                if player_cog := self.bot.get_cog('PlayerCog'):
+                    if hasattr(player_cog, 'elo_hierarchy_service'):
+                        # Clear the hierarchy cache
+                        player_cog.elo_hierarchy_service.clear_cache()
+                        cleared.append("ELO Hierarchy")
+                        self.logger.info(f"ELO Hierarchy cache cleared by {ctx.author}")
+            
+            # Send response
+            if cleared:
+                embed = discord.Embed(
+                    title="✅ Cache Cleared",
+                    description=f"Successfully cleared cache for: {', '.join(cleared)}",
+                    color=discord.Color.green()
+                )
+                embed.set_footer(text="Fresh data will be loaded on next request")
+            else:
+                embed = discord.Embed(
+                    title="❌ No Cache Cleared",
+                    description=f"No cache found for service: {service}",
+                    color=discord.Color.red()
+                )
+            
+            await ctx.send(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            self.logger.error(f"Error in admin-clear-cache: {e}")
+            await ctx.send(embed=discord.Embed(
+                title="❌ Clear Cache Failed",
+                description=f"An error occurred: {str(e)}",
+                color=discord.Color.red()
+            ), ephemeral=True)
 
 
 async def setup(bot):

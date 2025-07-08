@@ -8,7 +8,7 @@ and reduce code duplication across cogs and views.
 import discord
 from typing import Optional, List
 from bot.data_models.profile import ProfileData
-from bot.constants import EloConstants, UIConstants
+from bot.constants import UIConstants
 
 
 def build_profile_embed(profile_data: ProfileData, target_member: Optional[discord.abc.User]) -> discord.Embed:
@@ -183,19 +183,20 @@ def build_leaderboard_table_embed(
         embed.description += f"\n\n{empty_message}"
         return embed
     
-    # Table format
+    # Compact table header for Discord constraints - matching new format
     lines = ["```"]
-    lines.append(f"{'Rank':<6} {'Player':<20} {'Score':<8} {'S.Elo':<8} {'R.Elo':<8}")
-    lines.append("-" * 60)
+    lines.append(f"{'#':<4} {'Player':<16} {'Score':<6} {'S.Elo':<6} {'R.Elo':<6} {'Shd':<4} {'Shp':<4}")
+    lines.append("-" * 52)
     
+    # Table rows
     for entry in leaderboard_data.entries:
-        skull = UIConstants.SKULL_EMOJI if entry.overall_raw_elo < EloConstants.STARTING_ELO else "  "
-        player_name = entry.display_name[:18]  # Truncate long names
+        player_name = entry.display_name[:14]  # Truncate long names to match cog
         
         lines.append(
-            f"{entry.rank:<6} {player_name:<20} "
-            f"{entry.final_score:<8} {entry.overall_scoring_elo:<8} "
-            f"{skull}{entry.overall_raw_elo:<6}"
+            f"{entry.rank:<4} {player_name:<16} "
+            f"{entry.final_score:<6} {entry.overall_scoring_elo:<6} "
+            f"{entry.overall_raw_elo:<6} {entry.shard_bonus:<4} "
+            f"{entry.shop_bonus:<4}"
         )
     
     lines.append("```")

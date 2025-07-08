@@ -28,9 +28,10 @@ class PlayerNotFoundError(Exception):
 class ProfileService(BaseService):
     """Service for aggregating player profile data with efficient queries and caching."""
     
-    def __init__(self, session_factory, config_service):
+    def __init__(self, session_factory, config_service, elo_hierarchy_service=None):
         super().__init__(session_factory)
         self.config_service = config_service
+        self.elo_hierarchy_service = elo_hierarchy_service  # Phase 2.4: EloHierarchyCalculator integration
         # TTL cache with size limits to prevent memory leaks
         self._cache = {}
         self._cache_timestamps = {}
@@ -49,28 +50,12 @@ class ProfileService(BaseService):
         
         try:
             async with self.get_session() as session:
-                # First, create CTE that ranks all players to fix window function scope issue
-                # The previous query filtered to single user before ranking, breaking cross-server ranking
-                ranking_cte = select(
-                    Player.id,
-                    Player.discord_id,
-                    Player.display_name,
-                    Player.final_score,
-                    Player.overall_scoring_elo,
-                    Player.overall_raw_elo,
-                    Player.shard_bonus,
-                    Player.shop_bonus,
-                    case((Player.id.isnot(None), False), else_=False).label('is_ghost'),
-                    case((Player.id.isnot(None), None), else_=None).label('profile_color'),
-                    Player.matches_played,
-                    Player.wins,
-                    Player.losses,
-                    Player.draws,
-                    case((Player.matches_played > 0, (Player.wins * 100.0 / Player.matches_played)), else_=0.0).label('win_rate'),
-                    Player.current_streak,
-                    func.rank().over(order_by=Player.final_score.desc()).label('server_rank'),
-                    func.count(Player.id).over().label('total_players')
-                ).cte('ranked_players')
+                # Use RankingUtility to get consistent filtering (matches_played > 0)
+                from bot.utils.ranking import RankingUtility
+                ranking_cte = RankingUtility.create_player_ranking_cte(
+                    leaderboard_type='overall',
+                    sort_by='final_score'
+                )
                 
                 # Then filter for specific user from the ranked results
                 player_query = select(ranking_cte).where(ranking_cte.c.discord_id == user_id)
@@ -81,8 +66,8 @@ class ProfileService(BaseService):
                 if not player_row:
                     raise PlayerNotFoundError(f"Player {user_id} not found")
                 
-                # Extract values from CTE result
-                player_id = player_row.id
+                # Extract values from CTE result (RankingUtility uses different column names)
+                player_id = player_row.player_id  # Changed from 'id' to 'player_id'
                 display_name = player_row.display_name
                 final_score = player_row.final_score or 0
                 overall_scoring_elo = player_row.overall_scoring_elo or EloConstants.STARTING_ELO
@@ -96,8 +81,8 @@ class ProfileService(BaseService):
                 losses = player_row.losses or 0
                 draws = player_row.draws or 0
                 win_rate = (player_row.win_rate or 0) / 100.0  # Already calculated as percentage in SQL, convert to decimal
-                current_streak = player_row.current_streak
-                server_rank = player_row.server_rank
+                current_streak = player_row.current_streak if hasattr(player_row, 'current_streak') else ""
+                server_rank = player_row.rank  # Changed from 'server_rank' to 'rank'
                 total_players = player_row.total_players
                 
                 # Check if player has left server (ghost status will be determined at command layer)
@@ -106,8 +91,17 @@ class ProfileService(BaseService):
                 # Fetch cluster stats with efficient JOIN
                 cluster_stats = await self._fetch_cluster_stats(session, player_id)
                 
-                # Calculate Overall Elo using "Weighted Generalist" formula
-                calculated_overall_raw_elo, calculated_overall_scoring_elo = self._calculate_overall_elo(cluster_stats)
+                # Phase 2.4: Use EloHierarchyCalculator if available, otherwise fall back to local calculation
+                if self.elo_hierarchy_service:
+                    # Use centralized hierarchy calculator with caching
+                    hierarchy_data = await self.elo_hierarchy_service.get_hierarchy(player_id)
+                    calculated_overall_raw_elo = hierarchy_data.get('overall_raw_elo', overall_raw_elo)
+                    calculated_overall_scoring_elo = hierarchy_data.get('overall_scoring_elo', overall_scoring_elo)
+                    logger.debug(f"Using EloHierarchyCalculator for player {player_id}")
+                else:
+                    # Fallback to local calculation (temporary implementation)
+                    calculated_overall_raw_elo, calculated_overall_scoring_elo = self._calculate_overall_elo(cluster_stats)
+                    logger.debug(f"Using local calculation for player {player_id}")
                 
                 # Fetch match history
                 recent_matches = await self._fetch_recent_matches(session, player_id)
@@ -165,9 +159,7 @@ class ProfileService(BaseService):
             raise Exception("Unable to load profile data. Please try again later.")
     
     async def _fetch_cluster_stats(self, session: AsyncSession, player_id: int) -> List[ClusterStats]:
-        """Fetch cluster statistics efficiently, including clusters with no player activity."""
-        # Simplified approach: get all clusters first, then get player stats separately
-        
+        """Fetch cluster statistics using EloHierarchyCalculator for correct prestige weighting."""
         # Get all active clusters
         clusters_query = select(Cluster.id, Cluster.name).where(Cluster.is_active == True)
         clusters_result = await session.execute(clusters_query)
@@ -176,25 +168,12 @@ class ProfileService(BaseService):
         # Get cluster ranks for the player FIRST (since ClusterStats is frozen)
         cluster_ranks = await self._fetch_cluster_ranks(session, player_id)
         
-        # Get player's cluster stats - get latest elo per cluster and total matches
-        # First get the latest elo values per cluster
-        latest_elo_query = select(
-            Cluster.id,
-            PlayerEventStats.raw_elo,
-            PlayerEventStats.scoring_elo,
-            func.row_number().over(
-                partition_by=Cluster.id,
-                order_by=PlayerEventStats.updated_at.desc()
-            ).label('rn')
-        ).select_from(PlayerEventStats).join(
-            Event, PlayerEventStats.event_id == Event.id
-        ).join(
-            Cluster, Event.cluster_id == Cluster.id
-        ).where(
-            PlayerEventStats.player_id == player_id
-        ).subquery()
+        # Use EloHierarchyCalculator for correct prestige-weighted cluster elos
+        from bot.operations.elo_hierarchy import EloHierarchyCalculator
+        calculator = EloHierarchyCalculator(session)
+        cluster_elos = await calculator.calculate_cluster_elo(player_id)
         
-        # Get match counts per cluster
+        # Get match counts per cluster (this part we still need from direct queries)
         match_count_query = select(
             Cluster.id,
             func.count(PlayerEventStats.id).label('matches')
@@ -204,37 +183,20 @@ class ProfileService(BaseService):
             Cluster, Event.cluster_id == Cluster.id
         ).where(
             PlayerEventStats.player_id == player_id
-        ).group_by(Cluster.id).subquery()
+        ).group_by(Cluster.id)
         
-        # Combine latest elo with match counts
-        stats_query = select(
-            latest_elo_query.c.id,
-            latest_elo_query.c.scoring_elo,
-            latest_elo_query.c.raw_elo,
-            match_count_query.c.matches
-        ).select_from(latest_elo_query).join(
-            match_count_query, latest_elo_query.c.id == match_count_query.c.id
-        ).where(latest_elo_query.c.rn == 1)
-        
-        stats_result = await session.execute(stats_query)
-        player_stats = {
-            row.id: {
-                'scoring_elo': row.scoring_elo,
-                'raw_elo': row.raw_elo,
-                'matches': row.matches
-            }
-            for row in stats_result
-        }
+        match_result = await session.execute(match_count_query)
+        match_counts = {row.id: row.matches for row in match_result}
         
         threshold = self.config_service.get('elo.raw_elo_threshold', EloConstants.STARTING_ELO)
         
-        # Create ClusterStats with correct ranks from the start (frozen dataclass)
+        # Create ClusterStats using calculated cluster elos
         cluster_stats = []
         for cluster_id, cluster_name in all_clusters:
-            stats = player_stats.get(cluster_id, {})
-            scoring_elo = stats.get('scoring_elo', EloConstants.STARTING_ELO)
-            raw_elo = stats.get('raw_elo', EloConstants.STARTING_ELO)
-            matches = stats.get('matches', 0)
+            # Use prestige-weighted cluster elo from calculator
+            raw_elo = cluster_elos.get(cluster_id, EloConstants.STARTING_ELO)
+            scoring_elo = max(EloConstants.STARTING_ELO, raw_elo)  # Apply floor for scoring
+            matches = match_counts.get(cluster_id, 0)
             rank = cluster_ranks.get(cluster_id)  # None for unplayed, int for ranked
             
             cluster_stats.append(ClusterStats(
@@ -243,7 +205,7 @@ class ProfileService(BaseService):
                 scoring_elo=scoring_elo,
                 raw_elo=raw_elo,
                 matches_played=matches,
-                rank_in_cluster=rank,  # Set correct rank during creation
+                rank_in_cluster=rank,
                 is_below_threshold=raw_elo < threshold
             ))
         
@@ -596,3 +558,7 @@ class ProfileService(BaseService):
         cache_key = f"profile:{user_id}"
         self._cache.pop(cache_key, None)
         self._cache_timestamps.pop(cache_key, None)
+        
+        # Phase 2.4: Also invalidate hierarchy cache if service is available
+        if self.elo_hierarchy_service:
+            self.elo_hierarchy_service.invalidate_user(user_id)

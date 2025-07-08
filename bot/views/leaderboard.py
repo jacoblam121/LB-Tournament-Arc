@@ -68,8 +68,9 @@ class LeaderboardView(View):
         next_button.callback = self.next_page
         self.add_item(next_button)
         
-        # Sort dropdown
-        self.add_item(SortSelect(self.sort_by))
+        # Sort dropdown (only for overall leaderboard)
+        if self.leaderboard_type == "overall":
+            self.add_item(SortSelect(self.sort_by))
     
     async def previous_page(self, interaction: discord.Interaction):
         """Navigate to previous page."""
@@ -134,21 +135,36 @@ class LeaderboardView(View):
             embed.description += "\n\nThe leaderboard is empty for this category."
             return embed
         
-        # Table header
+        # Compact table header for Discord constraints
         lines = ["```"]
-        lines.append(f"{'Rank':<6} {'Player':<20} {'Score':<8} {'S.Elo':<8} {'R.Elo':<8}")
-        lines.append("-" * 60)
+        
+        # Different headers based on leaderboard type
+        if page_data.leaderboard_type in ("cluster", "event"):
+            # Cluster/Event leaderboards show only raw elo
+            lines.append(f"{'#':<4} {'Player':<20} {'Raw Elo':<8}")
+            lines.append("-" * 35)
+        else:
+            # Overall leaderboard shows all columns
+            lines.append(f"{'#':<4} {'Player':<16} {'Score':<6} {'S.Elo':<6} {'R.Elo':<6} {'Shd':<4} {'Shp':<4}")
+            lines.append("-" * 52)
         
         # Table rows
         for entry in page_data.entries:
-            skull = "💀" if entry.overall_raw_elo < 1000 else "  "
-            player_name = entry.display_name[:18]  # Truncate long names
-            
-            lines.append(
-                f"{entry.rank:<6} {player_name:<20} "
-                f"{entry.final_score:<8} {entry.overall_scoring_elo:<8} "
-                f"{skull}{entry.overall_raw_elo:<6}"
-            )
+            if page_data.leaderboard_type in ("cluster", "event"):
+                # Cluster/Event: Show only rank, name, and raw elo
+                player_name = entry.display_name[:18]  # More space for names
+                lines.append(
+                    f"{entry.rank:<4} {player_name:<20} {entry.overall_raw_elo:<8.1f}"
+                )
+            else:
+                # Overall: Show all columns
+                player_name = entry.display_name[:14]  # Truncate long names to match cog
+                lines.append(
+                    f"{entry.rank:<4} {player_name:<16} "
+                    f"{entry.final_score:<6} {entry.overall_scoring_elo:<6} "
+                    f"{entry.overall_raw_elo:<6} {entry.shard_bonus:<4} "
+                    f"{entry.shop_bonus:<4}"
+                )
         
         lines.append("```")
         embed.description += "\n" + "\n".join(lines)

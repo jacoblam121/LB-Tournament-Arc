@@ -214,7 +214,6 @@ class ProfileView(View):
     async def _jump_to_leaderboard(self, interaction: discord.Interaction):
         """Navigate to leaderboard showing this player."""
         try:
-            
             # Get player's rank and surrounding leaderboard
             player_rank = await self.leaderboard_service.get_player_rank(self.target_user_id)
             
@@ -246,6 +245,7 @@ class ProfileView(View):
                     total_pages=leaderboard_data.total_pages
                 )
                 
+                # Use followup since interaction was deferred
                 await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             else:
                 await interaction.followup.send(

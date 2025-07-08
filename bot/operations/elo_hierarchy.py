@@ -56,7 +56,7 @@ class EloHierarchyCalculator:
             )
             .where(
                 PlayerEventStats.player_id == player_id,
-                PlayerEventStats.scoring_elo > 1000,  # Exclude floor ratings (exactly 1000)
+                # Include all events - the calculation will handle them correctly
                 *([Event.cluster_id == cluster_id] if cluster_id is not None else [])
             )
             .order_by(
@@ -120,7 +120,7 @@ class EloHierarchyCalculator:
         # Group event stats by cluster
         clusters = defaultdict(list)
         for stat in event_stats:
-            clusters[stat.event.cluster_id].append(stat.scoring_elo)
+            clusters[stat.event.cluster_id].append(stat.raw_elo)
         
         cluster_elos = {}
         
@@ -143,8 +143,8 @@ class EloHierarchyCalculator:
             # Calculate weighted average
             cluster_elo = self._weighted_average(elos, weights)
             
-            # Apply dual-track floor rule (round to nearest integer)
-            cluster_elos[cid] = max(1000, round(cluster_elo))
+            # Return raw value (floor will be applied separately for scoring_elo)
+            cluster_elos[cid] = round(cluster_elo)
         
         return cluster_elos
     
@@ -161,40 +161,32 @@ class EloHierarchyCalculator:
         if not cluster_elos:
             return 1000  # Default if no events
         
+        # Ensure we have 20 cluster values (fill missing with 1000)
+        all_cluster_elos = []
+        for cluster_id in range(1, 21):  # Clusters 1-20
+            all_cluster_elos.append(cluster_elos.get(cluster_id, 1000))
+        
         # Sort cluster Elos in descending order
-        ranked_elos = sorted(cluster_elos.values(), reverse=True)
+        ranked_elos = sorted(all_cluster_elos, reverse=True)
         
-        # Apply tiered weighting
-        idx = 0
-        contributions = []
-        total_allocated_weight = 0.0
+        # Calculate tier averages
+        # Tier 1: Ranks 1-10 (indices 0-9)
+        tier1_elos = ranked_elos[0:10]
+        avg_t1 = sum(tier1_elos) / len(tier1_elos) if tier1_elos else 1000
         
-        for bucket_size, bucket_weight in self._TIER_BUCKETS:
-            # Get slice of cluster Elos for this tier
-            tier_slice = ranked_elos[idx:idx + bucket_size]
-            
-            if tier_slice:
-                # Distribute bucket weight equally among clusters in this tier
-                per_cluster_weight = bucket_weight / len(tier_slice)
-                contributions.extend([elo * per_cluster_weight for elo in tier_slice])
-                total_allocated_weight += bucket_weight
-            
-            idx += bucket_size
+        # Tier 2: Ranks 11-15 (indices 10-14)
+        tier2_elos = ranked_elos[10:15]
+        avg_t2 = sum(tier2_elos) / len(tier2_elos) if tier2_elos else 1000
         
-        # Calculate overall Elo
-        if contributions:
-            # If we used less than full weight (< 20 clusters), renormalize
-            if total_allocated_weight < 1.0:
-                # Scale up contributions to use full weight
-                scale_factor = 1.0 / total_allocated_weight
-                overall_elo = sum(contributions) * scale_factor
-            else:
-                overall_elo = sum(contributions)
-        else:
-            overall_elo = 1000
+        # Tier 3: Ranks 16-20 (indices 15-19)
+        tier3_elos = ranked_elos[15:20]
+        avg_t3 = sum(tier3_elos) / len(tier3_elos) if tier3_elos else 1000
         
-        # Apply dual-track floor rule (round to nearest integer)
-        return max(1000, round(overall_elo))
+        # Apply weights to tier averages
+        overall_elo = (avg_t1 * 0.60) + (avg_t2 * 0.25) + (avg_t3 * 0.15)
+        
+        # Return raw value (floor will be applied separately for scoring_elo)
+        return round(overall_elo)
     
     async def calculate_overall_elo(self, player_id: int) -> int:
         """
@@ -229,6 +221,8 @@ class EloHierarchyCalculator:
         
         return {
             'cluster_elos': cluster_elos,
-            'overall_elo': overall_elo,
+            'overall_elo': overall_elo,  # Keep for backward compatibility
+            'overall_raw_elo': overall_elo,  # Actual calculated value (can be < 1000)
+            'overall_scoring_elo': max(1000, overall_elo),  # Floored for display/ranking
             'total_clusters': len(cluster_elos)
         }

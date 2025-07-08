@@ -826,6 +826,19 @@ class MatchOperations:
                 if match.challenge_id:
                     await self._sync_results_to_challenge(session, match)
                 
+                # Phase 2.3 Fix: Sync overall player stats after match completion
+                try:
+                    # Import at method level to avoid circular dependencies
+                    from bot.services.player_stats_sync import PlayerStatsSyncService
+                    sync_service = PlayerStatsSyncService()
+                    participant_ids = [p.player_id for p in match.participants]
+                    await sync_service.sync_match_participants(session, participant_ids)
+                except Exception as sync_error:
+                    # Log error but don't fail the match completion
+                    self.logger.error(f"Failed to sync player stats for match {match_id}: {sync_error}")
+                    # Stats sync failure is non-critical - match results are already saved
+                
+                # Single commit for both match results and synced stats
                 await session.commit()
                 
                 # Reload match with relationships for return
@@ -884,6 +897,12 @@ class MatchOperations:
         max_placement = max(placements)
         if max_placement > len(results):
             raise MatchValidationError(f"Invalid placement {max_placement} for {len(results)} participants")
+        
+        # Phase 2.5: Draw Policy Enforcement - Explicitly reject draws in 1v1 matches
+        if match.match_format == MatchFormat.ONE_V_ONE and len(results) == 2:
+            # Check if both players have placement=1 (draw situation)
+            if placements.count(1) == 2:
+                raise MatchValidationError("Draws are explicitly not handled. Please cancel this match and replay.")
         
         # Validate placement sequence (must start from 1, allow ties)
         # Examples: [1,2,3] valid, [1,1,3] valid (tie for 1st), [2,3,4] invalid (must start at 1)
