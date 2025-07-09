@@ -1424,9 +1424,9 @@ class AdminCog(commands.Cog):
     @app_commands.describe(category="Configuration category to filter by (e.g., 'elo', 'shop')")
     async def config_list(self, interaction: discord.Interaction, category: Optional[str] = None):
         """List configuration values, optionally filtered by category."""
-        # Check admin permissions
-        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+        # Check bot owner permissions
+        if interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need bot owner permissions to use this command.", ephemeral=True)
             return
         
         config_service = getattr(self.bot, 'config_service', None)
@@ -1465,9 +1465,9 @@ class AdminCog(commands.Cog):
     @app_commands.describe(key="Configuration key (e.g., 'elo.starting_elo')")
     async def config_get(self, interaction: discord.Interaction, key: str):
         """Get a specific configuration value."""
-        # Check admin permissions
-        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+        # Check bot owner permissions
+        if interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need bot owner permissions to use this command.", ephemeral=True)
             return
         
         config_service = getattr(self.bot, 'config_service', None)
@@ -1500,9 +1500,9 @@ class AdminCog(commands.Cog):
         value: str
     ):
         """Set a configuration value."""
-        # Check admin permissions
-        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+        # Check bot owner permissions
+        if interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need bot owner permissions to use this command.", ephemeral=True)
             return
         
         config_service = getattr(self.bot, 'config_service', None)
@@ -1548,9 +1548,9 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="config-reload", description="Reload all configurations from database")
     async def config_reload(self, interaction: discord.Interaction):
         """Reload all configurations from database."""
-        # Check admin permissions
-        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+        # Check bot owner permissions
+        if interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need bot owner permissions to use this command.", ephemeral=True)
             return
         
         config_service = getattr(self.bot, 'config_service', None)
@@ -1573,9 +1573,9 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="config-categories", description="List all configuration categories")
     async def config_categories(self, interaction: discord.Interaction):
         """List all configuration categories and their parameter counts."""
-        # Check admin permissions
-        if not interaction.user.guild_permissions.administrator and interaction.user.id != Config.OWNER_DISCORD_ID:
-            await interaction.response.send_message("❌ You need administrator permissions to use this command.", ephemeral=True)
+        # Check bot owner permissions
+        if interaction.user.id != Config.OWNER_DISCORD_ID:
+            await interaction.response.send_message("❌ You need bot owner permissions to use this command.", ephemeral=True)
             return
         
         config_service = getattr(self.bot, 'config_service', None)

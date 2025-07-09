@@ -333,22 +333,43 @@ class PlacementModal(discord.ui.Modal):
         # Sort participants by placement
         sorted_participants = sorted(match.participants, key=lambda p: p.placement)
         
-        # Build results display
+        # Build results display with both event and cluster ELO
         results_text = []
         for participant in sorted_participants:
-            # Format Elo change
+            # Format event ELO change
             if participant.elo_change != 0:
-                elo_text = f" ({participant.elo_before} → {participant.elo_after}, "
+                event_elo_text = f"{participant.elo_before} → {participant.elo_after} ("
                 if participant.elo_change > 0:
-                    elo_text += f"+{participant.elo_change})"
+                    event_elo_text += f"+{participant.elo_change})"
                 else:
-                    elo_text += f"{participant.elo_change})"
+                    event_elo_text += f"{participant.elo_change})"
             else:
-                elo_text = f" ({participant.elo_before} → {participant.elo_after})"
+                event_elo_text = f"{participant.elo_before} → {participant.elo_after}"
             
-            results_text.append(
-                f"**#{participant.placement}** - {participant.player.display_name}{elo_text}"
-            )
+            # Format cluster ELO change if available
+            cluster_elo_text = ""
+            if participant.cluster_elo_before is not None and participant.cluster_elo_after is not None:
+                if participant.cluster_elo_change != 0:
+                    cluster_elo_text = f"{participant.cluster_elo_before} → {participant.cluster_elo_after} ("
+                    if participant.cluster_elo_change > 0:
+                        cluster_elo_text += f"+{participant.cluster_elo_change})"
+                    else:
+                        cluster_elo_text += f"{participant.cluster_elo_change})"
+                else:
+                    cluster_elo_text = f"{participant.cluster_elo_before} → {participant.cluster_elo_after}"
+            
+            # Build the result line
+            if cluster_elo_text:
+                results_text.append(
+                    f"**#{participant.placement}** - {participant.player.display_name}\n"
+                    f"  Event ELO: {event_elo_text}\n"
+                    f"  Cluster ELO: {cluster_elo_text}"
+                )
+            else:
+                # Fallback to original format if cluster ELO not available
+                results_text.append(
+                    f"**#{participant.placement}** - {participant.player.display_name} ({event_elo_text})"
+                )
         
         embed.add_field(
             name="Final Standings",
@@ -369,9 +390,9 @@ class PlacementModal(discord.ui.Modal):
         )
         
         if force_completion:
-            embed.set_footer(text="🛡️ Recorded via Owner Force - Elo ratings have been updated")
+            embed.set_footer(text="🛡️ Recorded via Owner Force - Event and Cluster ELO ratings have been updated")
         else:
-            embed.set_footer(text="✨ Recorded via Modal UI - Elo ratings have been updated")
+            embed.set_footer(text="✨ Recorded via Modal UI - Event and Cluster ELO ratings have been updated")
         
         return embed
 
@@ -630,21 +651,43 @@ class MatchConfirmationView(discord.ui.View):
         # Sort results by placement
         sorted_results = sorted(match.participants, key=lambda r: r.placement)
         
-        # Build results display
+        # Build results display with both event and cluster ELO
         results_text = []
         for result in sorted_results:
+            # Format event ELO change
             if result.elo_change != 0:
-                elo_text = f" ({result.elo_before} → {result.elo_after}, "
+                event_elo_text = f"{result.elo_before} → {result.elo_after} ("
                 if result.elo_change > 0:
-                    elo_text += f"+{result.elo_change})"
+                    event_elo_text += f"+{result.elo_change})"
                 else:
-                    elo_text += f"{result.elo_change})"
+                    event_elo_text += f"{result.elo_change})"
             else:
-                elo_text = f" ({result.elo_before} → {result.elo_after})"
+                event_elo_text = f"{result.elo_before} → {result.elo_after}"
             
-            results_text.append(
-                f"**#{result.placement}** - {result.player.display_name}{elo_text}"
-            )
+            # Format cluster ELO change if available
+            cluster_elo_text = ""
+            if result.cluster_elo_before is not None and result.cluster_elo_after is not None:
+                if result.cluster_elo_change != 0:
+                    cluster_elo_text = f"{result.cluster_elo_before} → {result.cluster_elo_after} ("
+                    if result.cluster_elo_change > 0:
+                        cluster_elo_text += f"+{result.cluster_elo_change})"
+                    else:
+                        cluster_elo_text += f"{result.cluster_elo_change})"
+                else:
+                    cluster_elo_text = f"{result.cluster_elo_before} → {result.cluster_elo_after}"
+            
+            # Build the result line
+            if cluster_elo_text:
+                results_text.append(
+                    f"**#{result.placement}** - {result.player.display_name}\n"
+                    f"  Event ELO: {event_elo_text}\n"
+                    f"  Cluster ELO: {cluster_elo_text}"
+                )
+            else:
+                # Fallback to original format if cluster ELO not available
+                results_text.append(
+                    f"**#{result.placement}** - {result.player.display_name} ({event_elo_text})"
+                )
         
         embed.add_field(
             name="Final Standings",
@@ -652,7 +695,7 @@ class MatchConfirmationView(discord.ui.View):
             inline=False
         )
         
-        embed.set_footer(text="✨ Results confirmed by all participants - Elo ratings updated")
+        embed.set_footer(text="✨ Results confirmed by all participants - Event and Cluster ELO ratings updated")
         return embed
     
     def _create_termination_embed(self, proposal, rejecting_player: Optional[Player], reason: Optional[str]) -> discord.Embed:
@@ -709,7 +752,7 @@ class MatchCommandsCog(commands.Cog):
         """Initialize all operations after bot and database are ready"""
         print(f"MatchCommandsCog: on_ready() called! bot.db = {self.bot.db}")
         if self.bot.db:
-            self.match_ops = MatchOperations(self.bot.db)
+            self.match_ops = MatchOperations(self.bot.db, self.bot.config_service)
             self.player_ops = PlayerOperations(self.bot.db)
             # Initialize EloHierarchyService with caching wrapper
             self.elo_hierarchy_service = CachedEloHierarchyService(self.bot.db.session_factory, self.bot.config_service)
@@ -1404,7 +1447,7 @@ class MatchCommandsCog(commands.Cog):
                 inline=True
             )
             
-            embed.set_footer(text="Elo ratings have been updated")
+            embed.set_footer(text="Event and Cluster ELO ratings have been updated")
             
             await processing_message.edit(embed=embed)
             

@@ -72,6 +72,10 @@ class Elo1v1Strategy(ScoringStrategy):
     Validates that exactly 2 participants are provided.
     """
     
+    def __init__(self, config_service=None):
+        """Initialize with optional config service for dynamic K-factors"""
+        self.config_service = config_service
+    
     def calculate_results(self, participants: List[ParticipantResult]) -> Dict[int, ScoringResult]:
         """Calculate 1v1 Elo changes using existing EloCalculator"""
         if len(participants) != 2:
@@ -97,7 +101,7 @@ class Elo1v1Strategy(ScoringStrategy):
         p1_change, p2_change = EloCalculator.calculate_match_elo_changes(
             p1.current_elo, p1.matches_played,
             p2.current_elo, p2.matches_played,
-            p1_won, is_draw
+            p1_won, is_draw, self.config_service
         )
         
         logger.info(f"1v1 Elo calculation: P1({p1.player_id}): {p1_change}, P2({p2.player_id}): {p2_change}")
@@ -120,6 +124,10 @@ class EloFfaStrategy(ScoringStrategy):
     - Handles placement ties as draws
     - Optimized for performance with large player counts
     """
+    
+    def __init__(self, config_service=None):
+        """Initialize with optional config service for dynamic K-factors"""
+        self.config_service = config_service
     
     def calculate_results(self, participants: List[ParticipantResult]) -> Dict[int, ScoringResult]:
         """Calculate FFA Elo changes using pairwise comparison method"""
@@ -152,8 +160,8 @@ class EloFfaStrategy(ScoringStrategy):
                     p1_score, p2_score = 0.5, 0.5
                 
                 # Get K-factors for each player
-                p1_k = EloCalculator.get_k_factor(p1.matches_played)
-                p2_k = EloCalculator.get_k_factor(p2.matches_played)
+                p1_k = EloCalculator.get_k_factor(p1.matches_played, self.config_service)
+                p2_k = EloCalculator.get_k_factor(p2.matches_played, self.config_service)
                 
                 # Calculate scaled Elo changes
                 # CRITICAL: Scale by (n-1) to prevent rating volatility

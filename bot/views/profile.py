@@ -42,7 +42,7 @@ class ProfileView(View):
             self.add_item(clusters_btn)
             
             history_btn = Button(
-                label="Match History",
+                label="Recent Matches",
                 emoji="⚔️",
                 style=discord.ButtonStyle.primary,
                 custom_id=f"profile:{self.target_user_id}:history"
@@ -155,7 +155,7 @@ class ProfileView(View):
             
             # Build history embed
             embed = discord.Embed(
-                title=f"Match History - {profile_data.display_name}",
+                title=f"Recent Matches - {profile_data.display_name}",
                 color=profile_data.profile_color or discord.Color.blue()
             )
             

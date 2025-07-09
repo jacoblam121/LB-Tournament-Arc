@@ -64,6 +64,7 @@ class TournamentBot(commands.Bot):
             'bot.cogs.player',
             'bot.cogs.challenge',
             'bot.cogs.leaderboard',
+            'bot.cogs.leaderboard_commands',
             'bot.cogs.events',
             'bot.cogs.match_commands',
             'bot.cogs.housekeeping',

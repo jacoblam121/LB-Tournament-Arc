@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Text, 
-    ForeignKey, Float, BigInteger, Enum as SQLEnum, UniqueConstraint, CheckConstraint, event
+    ForeignKey, Float, BigInteger, Enum as SQLEnum, UniqueConstraint, CheckConstraint, event, Index, text
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -24,6 +24,14 @@ class MatchResult(Enum):
     LOSS = "loss"
     DRAW = "draw"
 
+class ScoreDirection(Enum):
+    HIGH = "HIGH"  # Higher is better (Tetris points)
+    LOW = "LOW"    # Lower is better (Sprint times)
+
+class ScoreType(Enum):
+    ALL_TIME = "all_time"  # All-time personal best scores
+    WEEKLY = "weekly"      # Weekly competition scores
+
 class Cluster(Base):
     __tablename__ = 'clusters'
     
@@ -31,6 +39,7 @@ class Cluster(Base):
     name = Column(String(100), nullable=False, unique=True)
     number = Column(Integer, nullable=False, unique=True)
     is_active = Column(Boolean, default=True)
+    guild_id = Column(BigInteger, nullable=True)  # Discord guild ID for guild-specific validation
     
     # Metadata
     created_at = Column(DateTime, default=func.now())
@@ -54,8 +63,13 @@ class Event(Base):
     # Scoring configuration
     scoring_type = Column(String(20), nullable=True)  # 1v1, FFA, Team, Leaderboard - DEPRECATED: moving to match level
     supported_scoring_types = Column(String(100), nullable=True)  # Phase 2.4.1: Comma-separated list of supported scoring types
-    score_direction = Column(String(10), nullable=True)  # "HIGH" or "LOW" for leaderboard events
+    score_direction = Column(SQLEnum(ScoreDirection), nullable=True)  # HIGH or LOW for leaderboard events
     crownslayer_pool = Column(Integer, default=300)
+    
+    # Running statistics for leaderboard events (Phase 3.2)
+    score_count = Column(Integer, default=0, nullable=False)  # Number of scores submitted
+    score_mean = Column(Float, default=0.0, nullable=False)   # Running mean of scores
+    score_m2 = Column(Float, default=0.0, nullable=False)     # Sum of squares of differences from mean
     
     # Game configuration (inherited from Game model)
     is_active = Column(Boolean, default=True)
@@ -450,6 +464,12 @@ class MatchParticipant(Base):
     elo_before = Column(Integer, nullable=True)
     elo_after = Column(Integer, nullable=True)
     
+    # Cluster ELO tracking (for hierarchical tournament system)
+    cluster_id = Column(Integer, ForeignKey('clusters.id'), nullable=True, index=True)
+    cluster_elo_before = Column(Integer, nullable=True)
+    cluster_elo_after = Column(Integer, nullable=True)
+    cluster_elo_change = Column(Integer, default=0)
+    
     # Match-specific stats (optional, for future extension)
     custom_stats = Column(Text)  # JSON string for game-specific statistics
     
@@ -470,6 +490,7 @@ class MatchParticipant(Base):
     # Relationships
     match = relationship("Match", back_populates="participants")
     player = relationship("Player")
+    cluster = relationship("Cluster")
     
     @property
     def total_rating_change(self) -> int:
@@ -687,6 +708,8 @@ class PlayerEventStats(Base):
     
     # Leaderboard Event fields (for scoring_type="Leaderboard")
     all_time_leaderboard_elo = Column(Integer, nullable=True)  # From personal best Z-score conversion
+    weekly_elo_average = Column(Float, nullable=True, default=0)  # Average weekly Elo scores
+    weeks_participated = Column(Integer, nullable=False, default=0)  # Number of weeks participated
     
     # Meta-game economy fields (cumulative accumulators)
     final_score = Column(Integer, nullable=True)  # Total score points accumulated in this event
@@ -720,6 +743,45 @@ class PlayerEventStats(Base):
     
     def __repr__(self):
         return f"<PlayerEventStats(player_id={self.player_id}, event_id={self.event_id}, raw_elo={self.raw_elo}, scoring_elo={self.scoring_elo})>"
+
+class LeaderboardScore(Base):
+    """
+    Unified score tracking for leaderboard events with both all-time and weekly scores.
+    
+    This model handles both personal best (all-time) and weekly score submissions.
+    Unique constraints are enforced at the database level via migration scripts 
+    to prevent duplicate entries while maintaining cross-database compatibility.
+    """
+    __tablename__ = 'leaderboard_scores'
+    
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    score = Column(Float, nullable=False)
+    # Use values_callable to store enum values ('all_time', 'weekly') instead of names ('ALL_TIME', 'WEEKLY')
+    # This matches the database enum type created in migrations and the CHECK constraint expectations
+    score_type = Column(SQLEnum(ScoreType, name="scoretype", values_callable=lambda x: [e.value for e in x]), nullable=False)
+    week_number = Column(Integer, nullable=True)  # NULL for all-time scores
+    submitted_at = Column(DateTime, default=func.now())
+    
+    # Relationships
+    player = relationship("Player")
+    event = relationship("Event")
+    
+    # Database-agnostic constraints and indexes
+    __table_args__ = (
+        # Non-unique indexes for performance - unique constraints handled by migration script
+        Index('idx_leaderboard_scores_event', 'event_id', 'score_type'),
+        Index('idx_leaderboard_scores_week', 'event_id', 'score_type', 'week_number'),
+        # Data integrity constraint - ensures all_time scores have NULL week_number and weekly scores have NOT NULL week_number
+        CheckConstraint(
+            "(score_type = 'all_time' AND week_number IS NULL) OR (score_type = 'weekly' AND week_number IS NOT NULL)",
+            name="ck_leaderboard_score_type_week_consistency"
+        ),
+    )
+    
+    def __repr__(self):
+        return f"<LeaderboardScore(player_id={self.player_id}, event_id={self.event_id}, score={self.score}, type={self.score_type})>"
 
 class PlayerEventPersonalBest(Base):
     """

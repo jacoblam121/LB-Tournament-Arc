@@ -205,19 +205,31 @@ class ChallengeCog(commands.Cog):
         interaction: discord.Interaction, 
         current: str
     ) -> List[app_commands.Choice[str]]:
-        """Autocomplete for cluster selection"""
+        """Autocomplete for cluster selection (guild-specific)"""
         try:
-            # Get all active clusters
-            clusters = await self.db.get_all_clusters(active_only=True)
+            # Only show clusters if in a guild
+            if not interaction.guild:
+                return []
             
-            # Filter by current input
-            if current:
-                clusters = [c for c in clusters if current.lower() in c.name.lower()]
+            # Get active clusters filtered by guild
+            async with self.db.get_session() as session:
+                from sqlalchemy import select
+                stmt = select(Cluster).where(
+                    Cluster.is_active == True,
+                    # Allow clusters with matching guild_id or no guild_id (legacy support)
+                    (Cluster.guild_id == interaction.guild.id) | (Cluster.guild_id.is_(None))
+                ).order_by(Cluster.name)
+                
+                if current:
+                    stmt = stmt.where(Cluster.name.ilike(f"%{current}%"))
+                
+                result = await session.execute(stmt.limit(25))
+                clusters = result.scalars().all()
             
             # Return max 25 choices (Discord limit)
             return [
                 app_commands.Choice(name=c.name, value=str(c.id))
-                for c in clusters[:25]
+                for c in clusters
             ]
         except Exception as e:
             self.logger.error(f"Cluster autocomplete error: {e}")

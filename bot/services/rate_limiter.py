@@ -5,7 +5,7 @@ Phase 1.1.1: Simple in-memory rate limiting using deques and time-based windows.
 """
 
 import time
-import threading
+import asyncio
 from functools import wraps
 from collections import defaultdict, deque
 import logging
@@ -22,9 +22,9 @@ class SimpleRateLimiter:
     
     def __init__(self):
         self._requests = defaultdict(deque)  # Memory grows with unique user:command pairs
-        self._lock = threading.Lock()  # Thread safety for concurrent access
+        self._lock = asyncio.Lock()  # Async lock for concurrent access
     
-    def is_allowed(self, user_id: int, command: str, limit: int, window: int) -> bool:
+    async def is_allowed(self, user_id: int, command: str, limit: int, window: int) -> bool:
         """Check if user can execute command within rate limit."""
         # Input validation: reject invalid parameters
         if limit <= 0 or window <= 0:
@@ -33,7 +33,7 @@ class SimpleRateLimiter:
         key = f"{user_id}:{command}"
         now = time.time()
         
-        with self._lock:
+        async with self._lock:
             # Clean old requests outside window
             while self._requests[key] and self._requests[key][0] < now - window:
                 self._requests[key].popleft()
@@ -53,11 +53,12 @@ def rate_limit(command: str, limit: int = 1, window: int = 60):
             # Get rate limiter from bot instance
             rate_limiter = self.bot.rate_limiter
             
-            # Check if admin bypasses rate limits
-            if interaction.user.guild_permissions.administrator:
+            # Check if bot owner bypasses rate limits
+            from bot.config import Config
+            if interaction.user.id == Config.OWNER_DISCORD_ID:
                 return await func(self, interaction, *args, **kwargs)
             
-            if not rate_limiter.is_allowed(interaction.user.id, command, limit, window):
+            if not await rate_limiter.is_allowed(interaction.user.id, command, limit, window):
                 await interaction.response.send_message(
                     f"⏰ Rate limit exceeded. Please wait before using `/{command}` again.",
                     ephemeral=True

@@ -4,12 +4,14 @@ Leaderboard service for Phase 2.1.1 - Complete Profile & Leaderboard Overhaul
 Provides efficient leaderboard queries with caching and pagination support.
 """
 
-from typing import Optional, List
-from sqlalchemy import select, func, case, and_, text
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, case
 from bot.services.base import BaseService
-from bot.services.rate_limiter import rate_limit
 from bot.data_models.leaderboard import LeaderboardPage, LeaderboardEntry
-from bot.database.models import Player, Cluster, Event, PlayerEventStats
+from bot.database.models import Player, Cluster, Event, PlayerEventStats, ScoreDirection
 from bot.utils.ranking import RankingUtility
 import time
 import logging
@@ -280,6 +282,224 @@ class LeaderboardService(BaseService):
             query = query.order_by(Event.name)
             result = await session.execute(query)
             return [row[0] for row in result]
+    
+    async def submit_score(self, discord_id: int, display_name: str, event_id: int, raw_score: float, guild_id: int, max_retries: int = None) -> dict:
+        """Submit score with retry logic for race conditions and transaction atomicity."""
+        import asyncio
+        from sqlalchemy.exc import IntegrityError
+        from bot.utils.leaderboard_exceptions import TransactionError, DatabaseError
+        
+        if max_retries is None:
+            max_retries = self.config_service.get('leaderboard_system.score_submission_max_retries', 3)
+        
+        for attempt in range(max_retries):
+            try:
+                return await self._submit_score_attempt(discord_id, display_name, event_id, raw_score, guild_id)
+            except IntegrityError as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Score submission failed after {max_retries} attempts: {e}")
+                    raise TransactionError("score submission", max_retries)
+                # Exponential backoff with cap at 1 second
+                await asyncio.sleep(min(0.1 * (2 ** attempt), 1.0))
+                logger.warning(f"Score submission retry {attempt + 1} for discord_id {discord_id}, event {event_id}")
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Database error during score submission: {e}")
+                    raise DatabaseError("score submission", str(e))
+    
+    async def _submit_score_attempt(self, discord_id: int, display_name: str, event_id: int, raw_score: float, guild_id: int) -> dict:
+        """Single attempt at score submission with database-agnostic approach and transaction atomicity."""
+        from bot.database.models import Event, LeaderboardScore, ScoreType, Player
+        from bot.utils.leaderboard_exceptions import InvalidEventError, DatabaseError
+        
+        async with self.get_session() as session:
+            async with session.begin():
+                
+                # Get or create player within the transaction (atomicity fix)
+                player_stmt = select(Player).where(Player.discord_id == discord_id)
+                player = await session.scalar(player_stmt)
+                
+                if not player:
+                    # Create new player within the same transaction
+                    player = Player(
+                        discord_id=discord_id,
+                        username=display_name,
+                        display_name=display_name
+                    )
+                    session.add(player)
+                    await session.flush()  # Get the player.id without committing
+                
+                # Get event and lock for update WITH guild validation
+                from bot.database.models import Cluster
+                event_stmt = (
+                    select(Event)
+                    .join(Event.cluster)
+                    .where(
+                        Event.id == event_id,
+                        # Allow events from clusters with matching guild_id or no guild_id (legacy support)
+                        (Cluster.guild_id == guild_id) | (Cluster.guild_id.is_(None)),
+                    )
+                    .with_for_update()
+                )
+                event = await session.scalar(event_stmt)
+                
+                if not event or not event.score_direction:
+                    raise InvalidEventError("Event")
+                
+                # Get previous personal best with lock (database-agnostic approach)
+                pb_query = select(LeaderboardScore).where(
+                    LeaderboardScore.player_id == player.id,
+                    LeaderboardScore.event_id == event_id,
+                    LeaderboardScore.score_type == ScoreType.ALL_TIME
+                ).with_for_update()
+                
+                previous_pb = await session.scalar(pb_query)
+                previous_best = previous_pb.score if previous_pb else None
+                
+                # Check if this is a personal best
+                is_pb = self._is_personal_best(raw_score, previous_best, event.score_direction)
+                
+                if is_pb:
+                    if previous_pb:
+                        # Update existing personal best (database-agnostic)
+                        previous_pb.score = raw_score
+                        previous_pb.submitted_at = func.now()
+                        session.add(previous_pb)
+                    else:
+                        # Insert new personal best
+                        new_pb = LeaderboardScore(
+                            player_id=player.id,
+                            event_id=event_id,
+                            score=raw_score,
+                            score_type=ScoreType.ALL_TIME,
+                            week_number=None,
+                            submitted_at=func.now()
+                        )
+                        session.add(new_pb)
+                    
+                    # Update running statistics if it's actually a new PB
+                    await self._update_running_statistics(session, event, raw_score, previous_best)
+                
+                # Handle weekly score - check if one exists for current week
+                current_week = self._get_current_week()
+                existing_weekly = await session.scalar(
+                    select(LeaderboardScore).where(
+                        LeaderboardScore.player_id == player.id,
+                        LeaderboardScore.event_id == event_id,
+                        LeaderboardScore.score_type == ScoreType.WEEKLY,
+                        LeaderboardScore.week_number == current_week
+                    ).with_for_update()
+                )
+                
+                if existing_weekly:
+                    # Update if new score is better
+                    if self._is_personal_best(raw_score, existing_weekly.score, event.score_direction):
+                        existing_weekly.score = raw_score
+                        existing_weekly.submitted_at = func.now()
+                else:
+                    # Insert new weekly score
+                    weekly_score = LeaderboardScore(
+                        player_id=player.id,
+                        event_id=event_id,
+                        score=raw_score,
+                        score_type=ScoreType.WEEKLY,
+                        week_number=current_week
+                    )
+                    session.add(weekly_score)
+                
+                # Get current personal best for return
+                updated_pb = await session.scalar(
+                    select(LeaderboardScore).where(
+                        LeaderboardScore.player_id == player.id,
+                        LeaderboardScore.event_id == event_id,
+                        LeaderboardScore.score_type == ScoreType.ALL_TIME
+                    )
+                )
+                current_best = updated_pb.score if updated_pb else raw_score
+                
+                return {
+                    'is_personal_best': is_pb,
+                    'personal_best': current_best,
+                    'previous_best': previous_best if is_pb else None
+                }
+    
+    def _is_personal_best(self, new_score: float, previous_best: Optional[float], direction: ScoreDirection) -> bool:
+        """Check if new score is a personal best."""
+        if previous_best is None:
+            return True
+        
+        if direction == ScoreDirection.HIGH:
+            return new_score > previous_best
+        else:  # ScoreDirection.LOW
+            return new_score < previous_best
+    
+    
+    async def _update_running_statistics(self, session: "AsyncSession", event: Event, new_score: float, previous_best: Optional[float]):
+        """Update running statistics using Welford's algorithm."""
+        
+        # Initialize running stats if not present
+        if event.score_count is None:
+            event.score_count = 0
+            event.score_mean = 0.0
+            event.score_m2 = 0.0
+        
+        # Handle replacement vs addition
+        if previous_best is not None:
+            # This is a replacement - first remove the old score, then add the new one
+            if event.score_count > 1:
+                # Downdate: remove old score's contribution
+                old_count = event.score_count
+                old_mean = event.score_mean
+                old_m2 = event.score_m2
+                
+                # Remove the old score
+                delta = previous_best - old_mean
+                new_count_temp = old_count - 1
+                
+                # Guard against division by zero
+                if new_count_temp == 0:
+                    # Reset stats if no scores remain
+                    event.score_count = 0
+                    event.score_mean = 0.0
+                    event.score_m2 = 0.0
+                else:
+                    new_mean_temp = (old_count * old_mean - previous_best) / new_count_temp
+                    delta2 = previous_best - new_mean_temp
+                    new_m2_temp = old_m2 - delta * delta2
+                    
+                    # Update with downdated values
+                    event.score_count = new_count_temp
+                    event.score_mean = new_mean_temp
+                    # Guard against negative M2 due to floating-point errors
+                    event.score_m2 = max(new_m2_temp, 0.0)
+            else:
+                # Only one score existed, reset stats
+                event.score_count = 0
+                event.score_mean = 0.0
+                event.score_m2 = 0.0
+        
+        # Now add the new score using Welford's algorithm
+        old_count = event.score_count
+        old_mean = event.score_mean
+        old_m2 = event.score_m2
+        
+        new_count = old_count + 1
+        delta = new_score - old_mean
+        new_mean = old_mean + delta / new_count
+        delta2 = new_score - new_mean
+        new_m2 = old_m2 + delta * delta2
+        
+        event.score_count = new_count
+        event.score_mean = new_mean
+        # Guard against negative M2 due to floating-point errors
+        event.score_m2 = max(new_m2, 0.0)
+    
+    def _get_current_week(self) -> int:
+        """Get current ISO year-week number to prevent yearly collisions."""
+        from datetime import datetime
+        iso_cal = datetime.utcnow().isocalendar()
+        # Encode year and week together: YYYYWW (e.g., 202452 for week 52 of 2024)
+        return iso_cal.year * 100 + iso_cal.week
     
     async def get_player_rank(
         self,

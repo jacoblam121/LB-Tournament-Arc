@@ -65,9 +65,10 @@ class MatchOperations:
     with expert-validated patterns for data integrity and backward compatibility.
     """
     
-    def __init__(self, database):
-        """Initialize with database instance"""
+    def __init__(self, database, config_service=None):
+        """Initialize with database instance and optional config service"""
         self.db = database
+        self.config_service = config_service
         self.logger = logger
     
     @asynccontextmanager
@@ -722,6 +723,22 @@ class MatchOperations:
                     player_ids, event_id, session
                 )
                 
+                # Calculate cluster ELO "before" values for all participants
+                from bot.operations.elo_hierarchy import EloHierarchyCalculator
+                cluster_elo_calculator = EloHierarchyCalculator(session)
+                cluster_elos_before = {}
+                cluster_id = match.event.cluster_id
+                
+                for participant in match.participants:
+                    try:
+                        cluster_elos = await cluster_elo_calculator.calculate_cluster_elo(
+                            participant.player_id, cluster_id
+                        )
+                        cluster_elos_before[participant.player_id] = cluster_elos.get(cluster_id, 1000)
+                    except Exception as e:
+                        self.logger.warning(f"Failed to calculate cluster ELO before for player {participant.player_id}: {e}")
+                        cluster_elos_before[participant.player_id] = 1000
+                
                 # Build participant results using bulk-fetched stats
                 for participant in match.participants:
                     result_data = results_by_player[participant.player_id]
@@ -793,6 +810,10 @@ class MatchOperations:
                     elif match_result == MatchResult.DRAW:
                         event_stats.draws += 1
                     
+                    # Store cluster ELO "before" value in participant
+                    participant.cluster_id = cluster_id
+                    participant.cluster_elo_before = cluster_elos_before.get(participant.player_id, 1000)
+                    
                     # Phase 1.2: Keep global elo in sync for backward compatibility
                     participant.player.elo_rating = participant.elo_after
                     participant.player.matches_played += 1
@@ -826,6 +847,22 @@ class MatchOperations:
                 if match.challenge_id:
                     await self._sync_results_to_challenge(session, match)
                 
+                # Flush session to ensure event ELO updates are visible for cluster calculations
+                await session.flush()
+                
+                # Calculate cluster ELO "after" values and store in participants
+                for participant in match.participants:
+                    try:
+                        cluster_elos_after = await cluster_elo_calculator.calculate_cluster_elo(
+                            participant.player_id, cluster_id
+                        )
+                        participant.cluster_elo_after = cluster_elos_after.get(cluster_id, 1000)
+                        participant.cluster_elo_change = participant.cluster_elo_after - participant.cluster_elo_before
+                    except Exception as e:
+                        self.logger.warning(f"Failed to calculate cluster ELO after for player {participant.player_id}: {e}")
+                        participant.cluster_elo_after = participant.cluster_elo_before
+                        participant.cluster_elo_change = 0
+                
                 # Phase 2.3 Fix: Sync overall player stats after match completion
                 try:
                     # Import at method level to avoid circular dependencies
@@ -854,7 +891,8 @@ class MatchOperations:
                 
                 self.logger.info(
                     f"Successfully completed Match {match_id} with {len(results)} participants. "
-                    f"Rating changes: {[(r['player_id'], scoring_results[r['player_id']].elo_change) for r in results]}"
+                    f"Event ELO changes: {[(r['player_id'], scoring_results[r['player_id']].elo_change) for r in results]}. "
+                    f"Cluster ELO changes: {[(p.player_id, p.cluster_elo_change) for p in match.participants]}"
                 )
                 
                 return match
@@ -929,11 +967,11 @@ class MatchOperations:
         """Get appropriate scoring strategy based on match format"""
         # Map MatchFormat enum to scoring strategy
         if match_format == MatchFormat.ONE_V_ONE:
-            return Elo1v1Strategy()
+            return Elo1v1Strategy(self.config_service)
         elif match_format == MatchFormat.FFA:
-            return EloFfaStrategy()
+            return EloFfaStrategy(self.config_service)
         elif match_format == MatchFormat.TEAM:
-            return EloFfaStrategy()  # Team matches use FFA algorithm for now
+            return EloFfaStrategy(self.config_service)  # Team matches use FFA algorithm for now
         elif match_format == MatchFormat.LEADERBOARD:
             return PerformancePointsStrategy()
         else:

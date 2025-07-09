@@ -9,17 +9,18 @@ from discord.ext import commands
 from discord import app_commands
 from typing import Optional
 from dataclasses import replace
+import asyncio
 
 from bot.database.models import Player
 from bot.services.profile import ProfileService, PlayerNotFoundError
 from bot.services.leaderboard import LeaderboardService
 from bot.views.profile import ProfileView
 # NOTE: LeaderboardService restored for ProfileView navigation - services are shared utilities
-from bot.services.rate_limiter import rate_limit
 from bot.utils.embeds import build_profile_embed
 from bot.utils.error_embeds import ErrorEmbeds
 from bot.operations.elo_hierarchy import EloHierarchyCalculator
 from bot.services.elo_hierarchy_cache import CachedEloHierarchyService
+from bot.config import Config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,10 +45,10 @@ class PlayerCog(commands.Cog):
         
     @app_commands.command(name="profile", description="View a player's profile and statistics")
     @app_commands.describe(member="The player whose profile you want to view (defaults to you)")
-    @rate_limit("profile", limit=3, window=30)
+    @app_commands.checks.cooldown(rate=1, per=15.0, key=lambda i: i.user.id)
     async def profile(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
         """Display interactive player profile with stats and navigation."""
-        # Defer for database operations
+        # Defer immediately to secure interaction within 3-second window
         await interaction.response.defer()
         
         target_member = member or interaction.user
@@ -56,8 +57,19 @@ class PlayerCog(commands.Cog):
             # Check if player has left the server (ghost status)
             is_ghost = interaction.guild.get_member(target_member.id) is None if interaction.guild else False
             
-            # Fetch profile data through service
-            profile_data = await self.profile_service.get_profile_data(target_member.id)
+            # Fetch profile data with timeout protection
+            try:
+                profile_data = await asyncio.wait_for(
+                    self.profile_service.get_profile_data(target_member.id),
+                    timeout=15.0  # 15 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"Profile generation for {target_member.id} timed out.")
+                await interaction.followup.send(
+                    "⏰ Your profile is taking too long to generate. Please try again in a moment.",
+                    ephemeral=True
+                )
+                return
             
             # Update ghost status in profile data if needed
             if is_ghost and not profile_data.is_ghost:
@@ -86,6 +98,23 @@ class PlayerCog(commands.Cog):
             logger.error(f"Error in profile command: {e}")
             await interaction.followup.send(embed=ErrorEmbeds.command_error("An error occurred while fetching profile data. Please try again later."), ephemeral=True)
     
+    @profile.error
+    async def profile_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """Handle errors for the profile command, including cooldown."""
+        if isinstance(error, app_commands.CommandOnCooldown):
+            # Check if bot owner should bypass cooldown
+            if interaction.user.id == Config.OWNER_DISCORD_ID:
+                # Retry the command for bot owner
+                await self.profile.callback(self, interaction, interaction.namespace.member)
+            else:
+                # Send cooldown message
+                await interaction.response.send_message(
+                    f"⏰ Rate limit exceeded. Please wait {error.retry_after:.0f} seconds before using `/profile` again.",
+                    ephemeral=True
+                )
+        else:
+            # Let other errors propagate
+            raise error
     
     # MOVED: /leaderboard command moved to LeaderboardCog for Phase 2.3 Implementation Coordination
     

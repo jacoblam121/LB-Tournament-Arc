@@ -145,6 +145,12 @@ class MatchParticipant(Base):
     elo_before = Column(Integer, nullable=True)
     elo_after = Column(Integer, nullable=True)
     
+    # Cluster ELO tracking (for hierarchical tournament system)
+    cluster_id = Column(Integer, ForeignKey('clusters.id'), nullable=True, index=True)
+    cluster_elo_before = Column(Integer, nullable=True)
+    cluster_elo_after = Column(Integer, nullable=True)
+    cluster_elo_change = Column(Integer, default=0)
+    
     # Match-specific stats (optional, for future extension)
     custom_stats = Column(Text)  # JSON string for game-specific statistics
     
@@ -158,6 +164,7 @@ class MatchParticipant(Base):
     # Relationships
     match = relationship("Match", back_populates="participants")
     player = relationship("Player")
+    cluster = relationship("Cluster")
     
     @property
     def total_rating_change(self) -> int:

@@ -20,23 +20,35 @@ class EloCalculator:
         return 1 / (1 + math.pow(10, (rating_b - rating_a) / 400))
     
     @staticmethod
-    def get_k_factor(matches_played: int) -> int:
+    def get_k_factor(matches_played: int, config_service=None) -> int:
         """
         Get the K-factor based on number of matches played
         
         Args:
             matches_played: Number of matches the player has played
+            config_service: Optional ConfigurationService instance for dynamic config
             
         Returns:
             K-factor to use in Elo calculation
         """
-        if matches_played < Config.PROVISIONAL_MATCH_COUNT:
-            return Config.K_FACTOR_PROVISIONAL
-        return Config.K_FACTOR_STANDARD
+        if config_service is not None:
+            # Use dynamic configuration from ConfigurationService
+            k_factor_provisional = config_service.get('elo.k_factor_provisional', Config.K_FACTOR_PROVISIONAL)
+            k_factor_standard = config_service.get('elo.k_factor_standard', Config.K_FACTOR_STANDARD)
+            provisional_match_count = config_service.get('elo.provisional_match_count', Config.PROVISIONAL_MATCH_COUNT)
+            
+            if matches_played < provisional_match_count:
+                return k_factor_provisional
+            return k_factor_standard
+        else:
+            # Fallback to static configuration
+            if matches_played < Config.PROVISIONAL_MATCH_COUNT:
+                return Config.K_FACTOR_PROVISIONAL
+            return Config.K_FACTOR_STANDARD
     
     @staticmethod
     def calculate_elo_change(current_rating: int, opponent_rating: int, 
-                           actual_score: float, matches_played: int) -> int:
+                           actual_score: float, matches_played: int, config_service=None) -> int:
         """
         Calculate the Elo rating change for a player
         
@@ -45,12 +57,13 @@ class EloCalculator:
             opponent_rating: Opponent's current Elo rating
             actual_score: Actual score (1.0 for win, 0.5 for draw, 0.0 for loss)
             matches_played: Number of matches the player has played
+            config_service: Optional ConfigurationService instance for dynamic config
             
         Returns:
             Elo rating change (can be positive or negative)
         """
         expected_score = EloCalculator.calculate_expected_score(current_rating, opponent_rating)
-        k_factor = EloCalculator.get_k_factor(matches_played)
+        k_factor = EloCalculator.get_k_factor(matches_played, config_service)
         
         elo_change = k_factor * (actual_score - expected_score)
         return round(elo_change)
@@ -58,7 +71,7 @@ class EloCalculator:
     @staticmethod
     def calculate_match_elo_changes(player1_rating: int, player1_matches: int,
                                   player2_rating: int, player2_matches: int,
-                                  player1_won: bool, is_draw: bool = False) -> Tuple[int, int]:
+                                  player1_won: bool, is_draw: bool = False, config_service=None) -> Tuple[int, int]:
         """
         Calculate Elo changes for both players in a match
         
@@ -69,6 +82,7 @@ class EloCalculator:
             player2_matches: Player 2's matches played
             player1_won: True if player 1 won, False if player 2 won
             is_draw: True if the match was a draw
+            config_service: Optional ConfigurationService instance for dynamic config
             
         Returns:
             Tuple of (player1_elo_change, player2_elo_change)
@@ -84,11 +98,11 @@ class EloCalculator:
             player2_score = 1.0
         
         player1_change = EloCalculator.calculate_elo_change(
-            player1_rating, player2_rating, player1_score, player1_matches
+            player1_rating, player2_rating, player1_score, player1_matches, config_service
         )
         
         player2_change = EloCalculator.calculate_elo_change(
-            player2_rating, player1_rating, player2_score, player2_matches
+            player2_rating, player1_rating, player2_score, player2_matches, config_service
         )
         
         return player1_change, player2_change

@@ -35,6 +35,7 @@ from bot.database.models import (
 from bot.utils.logger import setup_logger
 from bot.utils.elo import EloCalculator
 from bot.config import Config
+from bot.services.player_stats_sync import PlayerStatsSyncService
 
 logger = setup_logger(__name__)
 
@@ -238,6 +239,11 @@ class AdminOperations:
                         # Reset to starting Elo
                         stats.raw_elo = Config.STARTING_ELO
                         stats.scoring_elo = Config.STARTING_ELO
+                        # Reset match statistics to return to provisional status
+                        stats.matches_played = 0
+                        stats.wins = 0
+                        stats.losses = 0
+                        stats.draws = 0
                         
                         # Create Elo history entry
                         elo_history = EloHistory(
@@ -261,6 +267,10 @@ class AdminOperations:
                             'old_scoring_elo': old_scoring_elo,
                             'new_elo': Config.STARTING_ELO
                         })
+                        
+                        # Recalculate and update overall ELO aggregation
+                        sync_service = PlayerStatsSyncService()
+                        await sync_service.update_player_overall_stats(s, player.id)
                 
                 else:
                     # Reset all events for player
@@ -275,6 +285,11 @@ class AdminOperations:
                         # Reset to starting Elo
                         stats.raw_elo = Config.STARTING_ELO
                         stats.scoring_elo = Config.STARTING_ELO
+                        # Reset match statistics to return to provisional status
+                        stats.matches_played = 0
+                        stats.wins = 0
+                        stats.losses = 0
+                        stats.draws = 0
                         
                         # Create Elo history entry
                         elo_history = EloHistory(
@@ -303,6 +318,10 @@ class AdminOperations:
                             'old_scoring_elo': old_scoring_elo,
                             'new_elo': Config.STARTING_ELO
                         })
+                    
+                    # Recalculate and update overall ELO aggregation for all events reset
+                    sync_service = PlayerStatsSyncService()
+                    await sync_service.update_player_overall_stats(s, player.id)
                 
                 # Create audit log
                 await self._create_audit_log(
@@ -409,6 +428,11 @@ class AdminOperations:
                         # Reset to starting Elo
                         stats.raw_elo = Config.STARTING_ELO
                         stats.scoring_elo = Config.STARTING_ELO
+                        # Reset match statistics to return to provisional status
+                        stats.matches_played = 0
+                        stats.wins = 0
+                        stats.losses = 0
+                        stats.draws = 0
                         
                         # Create Elo history entry
                         elo_history = EloHistory(
@@ -426,6 +450,15 @@ class AdminOperations:
                         s.add(elo_history)
                         
                         affected_players += 1
+                    
+                    # Recalculate and update overall ELO aggregation for all affected players
+                    sync_service = PlayerStatsSyncService()
+                    players_query = select(PlayerEventStats.player_id).where(PlayerEventStats.event_id == event_id).distinct()
+                    result = await s.execute(players_query)
+                    affected_player_ids = [row[0] for row in result.all()]
+                    
+                    for player_id in affected_player_ids:
+                        await sync_service.update_player_overall_stats(s, player_id)
                     
                     affected_events_count = 1
                 
@@ -445,6 +478,11 @@ class AdminOperations:
                         # Reset to starting Elo
                         stats.raw_elo = Config.STARTING_ELO
                         stats.scoring_elo = Config.STARTING_ELO
+                        # Reset match statistics to return to provisional status
+                        stats.matches_played = 0
+                        stats.wins = 0
+                        stats.losses = 0
+                        stats.draws = 0
                         
                         # Create Elo history entry
                         elo_history = EloHistory(
@@ -466,6 +504,11 @@ class AdminOperations:
                     
                     affected_players = len(unique_players)
                     affected_events_count = len(unique_events)
+                    
+                    # Recalculate and update overall ELO aggregation for all affected players
+                    sync_service = PlayerStatsSyncService()
+                    for player_id in unique_players:
+                        await sync_service.update_player_overall_stats(s, player_id)
                 
                 # Create audit log
                 await self._create_audit_log(

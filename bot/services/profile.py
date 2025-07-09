@@ -307,29 +307,55 @@ class ProfileService(BaseService):
     async def _fetch_recent_matches(self, session: AsyncSession, player_id: int, limit: int = 5) -> List[MatchRecord]:
         """Fetch recent match history with opponent information efficiently using batch queries."""
         
-        # Step 1: Query recent match history with opponent information from EloHistory
-        # Use LEFT JOIN to get opponent from EloHistory.opponent_id when available
-        query = select(
+        # Step 1: Query recent match history with robust duplicate handling
+        # Use ROW_NUMBER() window function to eliminate duplicate records while preserving legitimate multi-opponent matches
+        
+        # Inner query: Use ROW_NUMBER() to identify and eliminate duplicates
+        inner_query = select(
             EloHistory.match_id,
+            EloHistory.player_id,
             EloHistory.elo_change,
             EloHistory.recorded_at,
-            Event.name.label('event_name'),
-            Player.display_name.label('opponent_name'),
-            Player.id.label('opponent_id'),
-            # Determine result based on elo change (simplified)
+            EloHistory.event_id,
+            EloHistory.opponent_id,
+            func.row_number().over(
+                partition_by=[
+                    EloHistory.player_id,
+                    EloHistory.match_id,
+                    EloHistory.opponent_id,
+                    EloHistory.elo_change
+                ],
+                order_by=EloHistory.recorded_at
+            ).label('rn')
+        ).where(
+            EloHistory.player_id == player_id,
+            EloHistory.match_id.isnot(None)
+        ).subquery()
+        
+        # Main query: Aggregate deduplicated results
+        query = select(
+            inner_query.c.match_id,
+            func.coalesce(func.sum(inner_query.c.elo_change), 0).label('elo_change'),
+            func.max(inner_query.c.recorded_at).label('recorded_at'),
+            func.max(Event.name).label('event_name'),
+            func.max(Player.display_name).label('opponent_name'),
+            func.max(Player.id).label('opponent_id'),
+            # Determine result based on total elo change
             case(
-                (EloHistory.elo_change > 0, 'win'),
-                (EloHistory.elo_change < 0, 'loss'),
+                (func.coalesce(func.sum(inner_query.c.elo_change), 0) > 0, 'win'),
+                (func.coalesce(func.sum(inner_query.c.elo_change), 0) < 0, 'loss'),
                 else_='draw'
             ).label('result')
-        ).select_from(EloHistory).join(
-            Event, EloHistory.event_id == Event.id
+        ).select_from(inner_query).join(
+            Event, inner_query.c.event_id == Event.id
         ).outerjoin(
-            Player, EloHistory.opponent_id == Player.id
+            Player, inner_query.c.opponent_id == Player.id
         ).where(
-            EloHistory.player_id == player_id
+            inner_query.c.rn == 1  # Only keep first row of each duplicate group
+        ).group_by(
+            inner_query.c.match_id
         ).order_by(
-            EloHistory.recorded_at.desc()
+            func.max(inner_query.c.recorded_at).desc()
         ).limit(limit)
         
         result = await session.execute(query)
@@ -346,9 +372,9 @@ class ProfileService(BaseService):
         opponent_map = {}
         if matches_needing_opponents:
             batch_query = select(
-                MatchParticipant.match_id,
-                Player.display_name,
-                Player.id
+                MatchParticipant.match_id.label('match_id'),
+                Player.display_name.label('opponent_name'),
+                Player.id.label('opponent_id')
             ).select_from(MatchParticipant).join(
                 Player, MatchParticipant.player_id == Player.id
             ).where(
@@ -363,8 +389,8 @@ class ProfileService(BaseService):
             for batch_row in batch_result:
                 if batch_row.match_id not in opponent_map:
                     opponent_map[batch_row.match_id] = {
-                        'name': batch_row.display_name,
-                        'id': batch_row.id
+                        'name': batch_row.opponent_name,
+                        'opponent_id': batch_row.opponent_id
                     }
         
         # Step 4: Process all rows using the batched opponent data
@@ -380,7 +406,7 @@ class ProfileService(BaseService):
                 # Use batch-fetched opponent data
                 opponent_info = opponent_map[row.match_id]
                 opponent_name = opponent_info['name']
-                opponent_id = opponent_info['id']
+                opponent_id = opponent_info['opponent_id']
             elif row.opponent_name and row.opponent_id:
                 # Use opponent from EloHistory join
                 opponent_name = row.opponent_name
@@ -409,18 +435,38 @@ class ProfileService(BaseService):
     async def _calculate_streak_from_history(self, session: AsyncSession, player_id: int) -> int:
         """Calculate current streak from EloHistory records, counting distinct matches."""
         # Get recent elo history with match_id, ordered by most recent first
-        # GROUP BY match_id to get one record per match, using the sum of elo changes
-        history_query = select(
+        # Use ROW_NUMBER() window function to handle duplicates robustly
+        # Inner query: Eliminate duplicates while preserving legitimate multi-opponent matches
+        inner_query = select(
             EloHistory.match_id,
-            func.sum(EloHistory.elo_change).label('total_elo_change'),
-            func.max(EloHistory.recorded_at).label('latest_recorded_at')
+            EloHistory.player_id,
+            EloHistory.elo_change,
+            EloHistory.recorded_at,
+            func.row_number().over(
+                partition_by=[
+                    EloHistory.player_id,
+                    EloHistory.match_id,
+                    EloHistory.opponent_id,
+                    EloHistory.elo_change
+                ],
+                order_by=EloHistory.recorded_at
+            ).label('rn')
         ).where(
             EloHistory.player_id == player_id,
-            EloHistory.match_id.isnot(None)  # Only include records with match_id
+            EloHistory.match_id.isnot(None)
+        ).subquery()
+        
+        # Main query: Aggregate deduplicated results for streak calculation
+        history_query = select(
+            inner_query.c.match_id,
+            func.sum(inner_query.c.elo_change).label('total_elo_change'),
+            func.max(inner_query.c.recorded_at).label('latest_recorded_at')
+        ).where(
+            inner_query.c.rn == 1  # Only keep first row of each duplicate group
         ).group_by(
-            EloHistory.match_id
+            inner_query.c.match_id
         ).order_by(
-            func.max(EloHistory.recorded_at).desc()
+            func.max(inner_query.c.recorded_at).desc()
         ).limit(20)  # Look at last 20 matches
         
         result = await session.execute(history_query)

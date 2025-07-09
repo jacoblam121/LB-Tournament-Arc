@@ -66,7 +66,8 @@ class EloService:
     @staticmethod
     def calculate_single_match_elo(
         players_data: List[PlayerEloData],
-        match_type: str = "1v1"
+        match_type: str = "1v1",
+        config_service=None
     ) -> List[EloCalculationResult]:
         """
         Calculate Elo changes for a single match of any type.
@@ -85,16 +86,16 @@ class EloService:
             raise ValueError("players_data cannot be empty")
         
         if match_type == "1v1":
-            return EloService._calculate_1v1_elo(players_data)
+            return EloService._calculate_1v1_elo(players_data, config_service)
         elif match_type == "ffa":
-            return EloService._calculate_ffa_elo(players_data)
+            return EloService._calculate_ffa_elo(players_data, config_service)
         elif match_type == "team":
-            return EloService._calculate_team_elo(players_data)
+            return EloService._calculate_team_elo(players_data, config_service)
         else:
             raise ValueError(f"Unsupported match type: {match_type}")
     
     @staticmethod
-    def _calculate_1v1_elo(players_data: List[PlayerEloData]) -> List[EloCalculationResult]:
+    def _calculate_1v1_elo(players_data: List[PlayerEloData], config_service=None) -> List[EloCalculationResult]:
         """Calculate Elo changes for 1v1 match"""
         if len(players_data) != 2:
             raise ValueError("1v1 match must have exactly 2 players")
@@ -109,7 +110,7 @@ class EloService:
         player1_change, player2_change = EloCalculator.calculate_match_elo_changes(
             player1.current_elo, player1.matches_played,
             player2.current_elo, player2.matches_played,
-            player1_won, is_draw
+            player1_won, is_draw, config_service
         )
         
         # Calculate expected and actual scores for reporting
@@ -129,7 +130,7 @@ class EloService:
                 old_elo=player1.current_elo,
                 new_elo=player1.current_elo + player1_change,
                 elo_change=player1_change,
-                k_factor=EloCalculator.get_k_factor(player1.matches_played),
+                k_factor=EloCalculator.get_k_factor(player1.matches_played, config_service),
                 expected_score=expected_score_1,
                 actual_score=actual_score_1,
                 calculation_method="1v1"
@@ -139,7 +140,7 @@ class EloService:
                 old_elo=player2.current_elo,
                 new_elo=player2.current_elo + player2_change,
                 elo_change=player2_change,
-                k_factor=EloCalculator.get_k_factor(player2.matches_played),
+                k_factor=EloCalculator.get_k_factor(player2.matches_played, config_service),
                 expected_score=expected_score_2,
                 actual_score=actual_score_2,
                 calculation_method="1v1"
@@ -147,7 +148,7 @@ class EloService:
         ]
     
     @staticmethod
-    def _calculate_ffa_elo(players_data: List[PlayerEloData]) -> List[EloCalculationResult]:
+    def _calculate_ffa_elo(players_data: List[PlayerEloData], config_service=None) -> List[EloCalculationResult]:
         """
         Calculate Elo changes for FFA match using N*(N-1)/2 pairwise comparisons.
         
@@ -168,7 +169,7 @@ class EloService:
             total_actual_score = 0
             
             # Calculate K-factor with FFA scaling (once per player)
-            base_k_factor = EloCalculator.get_k_factor(player.matches_played)
+            base_k_factor = EloCalculator.get_k_factor(player.matches_played, config_service)
             scaled_k_factor = base_k_factor / (n_players - 1)
             
             # Calculate pairwise comparisons against all other players
@@ -214,7 +215,7 @@ class EloService:
         return results
     
     @staticmethod
-    def _calculate_team_elo(players_data: List[PlayerEloData]) -> List[EloCalculationResult]:
+    def _calculate_team_elo(players_data: List[PlayerEloData], config_service=None) -> List[EloCalculationResult]:
         """
         Calculate Elo changes for team match.
         
@@ -271,7 +272,7 @@ class EloService:
                     actual_score = 0.0
                 
                 # Use team's average K-factor
-                base_k_factor = EloCalculator.get_k_factor(team_match_counts[placement])
+                base_k_factor = EloCalculator.get_k_factor(team_match_counts[placement], config_service)
                 scaled_k_factor = base_k_factor / (len(teams) - 1)
                 
                 elo_change = scaled_k_factor * (actual_score - expected_score)
@@ -304,7 +305,8 @@ class EloService:
         player_id: int,
         event_id: int,
         match_history: List[Dict[str, Any]],
-        starting_elo: int = None
+        starting_elo: int = None,
+        config_service=None
     ) -> Dict[str, Any]:
         """
         Recalculate a player's Elo from scratch using match history.
@@ -361,7 +363,7 @@ class EloService:
             
             # Calculate Elo change for this match
             all_players = [player_data] + other_players
-            calculation_results = EloService.calculate_single_match_elo(all_players, match_type)
+            calculation_results = EloService.calculate_single_match_elo(all_players, match_type, config_service)
             
             # Find this player's result
             player_result = next((r for r in calculation_results if r.player_id == player_id), None)

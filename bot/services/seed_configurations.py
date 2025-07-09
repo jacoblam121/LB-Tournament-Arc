@@ -103,6 +103,9 @@ INITIAL_CONFIGS = {
     'leaderboard_system.batch_calculation_size': 100,
     'leaderboard_system.max_concurrent_calculations': 5,
     'leaderboard_system.score_submission_rate_limit': 10,
+    'leaderboard_system.max_score_limit': 1000000000,
+    'leaderboard_system.score_submission_max_retries': 3,
+    'leaderboard_system.score_submission_cooldown_seconds': 60,
     'leaderboard_system.outlier_detection_enabled': True,
     'leaderboard_system.historical_data_retention_weeks': 52,
     

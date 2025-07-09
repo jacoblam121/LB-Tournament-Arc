@@ -38,7 +38,7 @@ class HousekeepingCog(commands.Cog):
         """Initialize operations and start background tasks after bot is ready"""
         if self.bot.db:
             self.challenge_ops = ChallengeOperations(self.bot.db)
-            self.match_ops = MatchOperations(self.bot.db)
+            self.match_ops = MatchOperations(self.bot.db, self.bot.config_service)
             self.cleanup_expired_challenges.start()
             self.logger.info("HousekeepingCog: Background tasks started")
         else:
