@@ -5,6 +5,9 @@ from typing import Optional, Union
 import asyncio
 from bot.config import Config
 from bot.operations.admin_operations import AdminOperations, AdminOperationError, AdminPermissionError, AdminValidationError
+from bot.database.models import Event
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 # Removed AdminConfirmationModal import - replaced with button-based confirmation
 from bot.utils.logger import setup_logger
 
@@ -15,7 +18,7 @@ class AdminCog(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.admin_ops = AdminOperations(bot.db)
+        self.admin_ops = AdminOperations(bot.db, bot.config_service)
         self.logger = logger
     
     def cog_check(self, ctx):
@@ -506,62 +509,30 @@ class AdminCog(commands.Cog):
             await interaction.response.edit_message(view=self)
             
             try:
-                # Perform the reset
-                async with self.admin_cog.bot.db.get_session() as session:
-                    from bot.database.models import Player, EloHistory
-                    from sqlalchemy import select, delete
-                    
-                    # Get player
-                    player = await session.get(Player, self.player_id)
-                    if not player:
-                        await interaction.followup.send("❌ Player not found", ephemeral=True)
-                        return
-                    
-                    # Reset match statistics
-                    old_stats = {
-                        'matches_played': player.matches_played,
-                        'wins': player.wins,
-                        'losses': player.losses,
-                        'draws': player.draws,
-                        'current_streak': player.current_streak,
-                        'max_streak': player.max_streak
-                    }
-                    
-                    player.matches_played = 0
-                    player.wins = 0
-                    player.losses = 0
-                    player.draws = 0
-                    player.current_streak = 0
-                    player.max_streak = 0
-                    
-                    # Delete match history
-                    history_delete = delete(EloHistory).where(EloHistory.player_id == self.player_id)
-                    history_result = await session.execute(history_delete)
-                    records_deleted = history_result.rowcount
-                    
-                    # Delete PlayerEventStats to complete reset
-                    from bot.database.models import PlayerEventStats
-                    stats_delete = delete(PlayerEventStats).where(PlayerEventStats.player_id == self.player_id)
-                    stats_result = await session.execute(stats_delete)
-                    stats_deleted = stats_result.rowcount
-                    
-                    await session.commit()
+                # Delegate to AdminOperations service layer
+                result = await self.admin_cog.admin_ops.reset_player_match_history(
+                    admin_discord_id=interaction.user.id,
+                    player_id=self.player_id,
+                    reason=self.reason
+                )
                 
-                # Send success message
+                # Build success embed from service response
                 success_embed = discord.Embed(
                     title="✅ Match History Reset Complete",
-                    description=f"Successfully reset match history for **{self.player_name}**",
+                    description=f"Successfully reset match history for **{result['player_username']}**",
                     color=discord.Color.green()
                 )
                 success_embed.add_field(
                     name="Statistics Reset",
-                    value=f"Matches: {old_stats['matches_played']} → 0\nW/L/D: {old_stats['wins']}/{old_stats['losses']}/{old_stats['draws']} → 0/0/0\nStreak: {old_stats['current_streak']} → 0",
+                    value=f"Matches: {result['old_stats']['matches_played']} → 0\n"
+                          f"W/L/D: {result['old_stats']['wins']}/{result['old_stats']['losses']}/{result['old_stats']['draws']} → 0/0/0\n"
+                          f"Streak: {result['old_stats']['current_streak']} → 0",
                     inline=False
                 )
-                success_embed.add_field(name="History Records Deleted", value=f"{records_deleted:,} records", inline=True)
-                success_embed.add_field(name="Event Stats Deleted", value=f"{stats_deleted:,} records", inline=True)
-                if self.reason:
-                    success_embed.add_field(name="Reason", value=self.reason, inline=False)
+                success_embed.add_field(name="History Records Deleted", value=f"{result['histories_deleted']:,} records", inline=True)
+                success_embed.add_field(name="Event Stats Deleted", value=f"{result['event_stats_deleted']:,} records", inline=True)
+                if result['reason']:
+                    success_embed.add_field(name="Reason", value=result['reason'], inline=False)
                 
                 await interaction.followup.send(embed=success_embed)
                 
@@ -622,50 +593,33 @@ class AdminCog(commands.Cog):
             await interaction.response.edit_message(view=self)
             
             try:
-                # Perform the mass reset
-                async with self.admin_cog.bot.db.get_session() as session:
-                    from bot.database.models import Player, EloHistory
-                    from sqlalchemy import update, delete
-                    
-                    # Reset all player statistics
-                    player_update = update(Player).values(
-                        matches_played=0,
-                        wins=0,
-                        losses=0,
-                        draws=0,
-                        current_streak=0,
-                        max_streak=0
-                    )
-                    player_result = await session.execute(player_update)
-                    players_updated = player_result.rowcount
-                    
-                    # Delete all match history
-                    history_delete = delete(EloHistory)
-                    history_result = await session.execute(history_delete)
-                    records_deleted = history_result.rowcount
-                    
-                    # Delete all PlayerEventStats to complete reset
-                    from bot.database.models import PlayerEventStats
-                    stats_delete = delete(PlayerEventStats)
-                    stats_result = await session.execute(stats_delete)
-                    stats_deleted = stats_result.rowcount
-                    
-                    await session.commit()
+                # Delegate to AdminOperations service layer
+                result = await self.admin_cog.admin_ops.reset_all_match_history(
+                    admin_discord_id=interaction.user.id,
+                    reason=self.reason
+                )
                 
-                # Send success message
+                # Build success embed from service response
                 success_embed = discord.Embed(
                     title="✅ Mass Match History Reset Complete",
                     description="Successfully reset match history for ALL players",
                     color=discord.Color.green()
                 )
-                success_embed.add_field(name="Players Updated", value=f"{players_updated:,} players", inline=True)
-                success_embed.add_field(name="History Records Deleted", value=f"{records_deleted:,} records", inline=True)
-                success_embed.add_field(name="Event Stats Deleted", value=f"{stats_deleted:,} records", inline=True)
-                success_embed.add_field(name="Reason", value=self.reason, inline=False)
+                success_embed.add_field(name="Players Updated", value=f"{result['players_updated']:,} players", inline=True)
+                success_embed.add_field(name="History Records Deleted", value=f"{result['histories_deleted']:,} records", inline=True)
+                success_embed.add_field(name="Event Stats Deleted", value=f"{result['event_stats_deleted']:,} records", inline=True)
+                success_embed.add_field(name="Reason", value=result['reason'] or "No reason provided", inline=False)
                 success_embed.add_field(
                     name="Reset Statistics",
                     value="• All matches_played → 0\n• All wins/losses/draws → 0/0/0\n• All streaks → 0\n• All event stats and rankings → cleared",
                     inline=False
+                )
+                success_embed.add_field(
+                    name="Pre-Reset Counts",
+                    value=f"Players: {result['total_players_before']:,}\n"
+                          f"Histories: {result['total_histories_before']:,}\n"
+                          f"Event Stats: {result['total_event_stats_before']:,}",
+                    inline=True
                 )
                 
                 await interaction.followup.send(embed=success_embed)
@@ -698,6 +652,23 @@ class AdminCog(commands.Cog):
             """Handle timeout - disable buttons"""
             for child in self.children:
                 child.disabled = True
+    
+    # ============================================================================
+    # Helper Functions
+    # ============================================================================
+    
+    async def _check_owner_permission(self, ctx) -> bool:
+        """Check if the user is the bot owner and send error if not"""
+        if ctx.author.id != Config.OWNER_DISCORD_ID:
+            embed = discord.Embed(
+                title="❌ Owner-Only Command",
+                description="This command is restricted to the bot owner only.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=f"Your ID: {ctx.author.id}")
+            await ctx.send(embed=embed, ephemeral=True)
+            return False
+        return True
     
     # ============================================================================
     # Cluster->Event Parsing Helper Functions
@@ -818,7 +789,7 @@ class AdminCog(commands.Cog):
         event_name="Optional event name or cluster->event format (e.g., 'chess->blitz'). If not specified, resets all events for this player.",
         reason="Optional reason for the Elo reset (for audit trail)"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def reset_player_elo(self, ctx, player: discord.Member, event_name: Optional[str] = None, *, reason: Optional[str] = None):
         """
         Reset a single player's Elo in a specific event (or all events if not specified).
@@ -830,6 +801,10 @@ class AdminCog(commands.Cog):
         
         Requires confirmation via reaction within 30 seconds.
         """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+            
         try:
             # Defer response for slash commands to prevent timeout
             if ctx.interaction:
@@ -1030,7 +1005,7 @@ class AdminCog(commands.Cog):
         event_name="Optional event name (if not specified, resets ALL events for ALL players)",
         reason="Required reason for the mass Elo reset (for audit trail)"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def reset_all_elo(self, ctx, event_name: Optional[str] = None, *, reason: Optional[str] = None):
         """
         Reset ALL players' Elo in a specific event (or all events if not specified).
@@ -1044,6 +1019,10 @@ class AdminCog(commands.Cog):
         
         Requires button confirmation (improved from broken modal workflow).
         """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+            
         try:
             # Defer response for slash commands to prevent timeout
             if ctx.interaction:
@@ -1147,12 +1126,176 @@ class AdminCog(commands.Cog):
         """Provide enhanced autocomplete with cluster->event format for disambiguation"""
         return await self._event_autocomplete_helper(interaction, current)
     
+    @commands.hybrid_command(name='admin-reset-lb-event', description="Reset leaderboard data for a specific event (DESTRUCTIVE)")
+    @app_commands.describe(
+        event_name="Event name to reset leaderboard data for",
+        reason="Required reason for the leaderboard reset (for audit trail)"
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def reset_lb_event(self, ctx, event_name: str, *, reason: Optional[str] = None):
+        """
+        Reset leaderboard data for a specific event.
+        
+        ⚠️ CRITICAL: This is a destructive operation that will clear all leaderboard data for the event.
+        
+        Usage:
+        !admin-reset-lb-event "event_name" [reason]
+        !admin-reset-lb-event "Tetris Sprint" "Season reset"
+        
+        Requires button confirmation.
+        """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+            
+        try:
+            # Defer response for slash commands to prevent timeout
+            if ctx.interaction:
+                await ctx.defer(ephemeral=True)
+            
+            # Validate event exists (supports cluster->event syntax)
+            event_id = None
+            parsed_event_name = None
+            if event_name:
+                event_id, parsed_event_name = await self._parse_cluster_event(ctx, event_name)
+                if event_id is None:
+                    # Error already sent by _parse_cluster_event
+                    return
+            
+            # Get event details for confirmation
+            async with self.bot.db.get_session() as session:
+                event_query = select(Event).where(Event.id == event_id).options(selectinload(Event.cluster))
+                event_result = await session.execute(event_query)
+                event = event_result.scalar_one_or_none()
+                
+                if not event:
+                    await ctx.send(embed=discord.Embed(
+                        title="❌ Event Not Found",
+                        description=f"Event with ID {event_id} not found.",
+                        color=discord.Color.red()
+                    ))
+                    return
+            
+            # Create confirmation embed
+            embed = discord.Embed(
+                title="🚨 CONFIRM LEADERBOARD RESET",
+                color=discord.Color.dark_red()
+            )
+            embed.add_field(name="Event", value=f"{parsed_event_name or event.name}", inline=True)
+            embed.add_field(name="Cluster", value=f"{event.cluster.name if event.cluster else 'None'}", inline=True)
+            embed.add_field(name="Reason", value=reason or "No reason provided", inline=True)
+            embed.add_field(
+                name="⚠️ Action",
+                value="This will **permanently delete** all leaderboard data for this event:\n"
+                      "• All leaderboard scores\n"
+                      "• Personal best records\n"
+                      "• Weekly scores\n"
+                      "• Weekly Elo history\n"
+                      "• Event statistics",
+                inline=False
+            )
+            embed.add_field(
+                name="🔒 Coordination",
+                value="This operation uses distributed locking to prevent race conditions with scoring calculations.",
+                inline=False
+            )
+            
+            # Create confirmation view
+            view = AdminConfirmationView(
+                action="reset_lb_event",
+                admin_id=ctx.author.id,
+                event_id=event_id,
+                reason=reason
+            )
+            
+            await ctx.send(embed=embed, view=view, ephemeral=True)
+            
+        except Exception as e:
+            self.logger.error(f"Error in admin-reset-lb-event command: {e}")
+            await ctx.send(embed=discord.Embed(
+                title="❌ Command Error",
+                description=f"An unexpected error occurred: {str(e)}",
+                color=discord.Color.red()
+            ))
+
+    @reset_lb_event.autocomplete('event_name')
+    async def reset_lb_event_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Provide enhanced autocomplete with cluster->event format for disambiguation"""
+        return await self._event_autocomplete_helper(interaction, current)
+    
+    @commands.hybrid_command(name='admin-reset-lb-event-all', description="Reset ALL leaderboard data for ALL events (DESTRUCTIVE)")
+    @app_commands.describe(
+        reason="Required reason for the global leaderboard reset (for audit trail)"
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def reset_lb_event_all(self, ctx, *, reason: Optional[str] = None):
+        """
+        Reset ALL leaderboard data for ALL events.
+        
+        ⚠️ CRITICAL: This is a destructive operation that will clear ALL leaderboard data.
+        
+        Usage:
+        !admin-reset-lb-event-all [reason]
+        !admin-reset-lb-event-all "New season start"
+        
+        Requires button confirmation.
+        """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+            
+        try:
+            # Defer response for slash commands to prevent timeout
+            if ctx.interaction:
+                await ctx.defer(ephemeral=True)
+            
+            # Create confirmation embed
+            embed = discord.Embed(
+                title="🚨 CONFIRM GLOBAL LEADERBOARD RESET",
+                color=discord.Color.dark_red()
+            )
+            embed.add_field(name="Scope", value="**ALL EVENTS**", inline=True)
+            embed.add_field(name="Reason", value=reason or "No reason provided", inline=True)
+            embed.add_field(
+                name="⚠️ Action",
+                value="This will **permanently delete** ALL leaderboard data:\n"
+                      "• All leaderboard scores for all events\n"
+                      "• All personal best records\n"
+                      "• All weekly scores\n"
+                      "• All weekly Elo history\n"
+                      "• All event statistics\n"
+                      "• **THIS CANNOT BE UNDONE**",
+                inline=False
+            )
+            embed.add_field(
+                name="🔒 Coordination",
+                value="This operation uses global distributed locking to prevent race conditions with all scoring calculations.",
+                inline=False
+            )
+            
+            # Create confirmation view
+            view = AdminConfirmationView(
+                action="reset_lb_event_all",
+                admin_id=ctx.author.id,
+                reason=reason
+            )
+            
+            await ctx.send(embed=embed, view=view, ephemeral=True)
+            
+        except Exception as e:
+            self.logger.error(f"Error in admin-reset-lb-event-all command: {e}")
+            await ctx.send(embed=discord.Embed(
+                title="❌ Command Error",
+                description=f"An unexpected error occurred: {str(e)}",
+                color=discord.Color.red()
+            ))
+    
     @commands.hybrid_command(name='admin-reset-match-history', description="Reset a single player's match history and streaks")
     @app_commands.describe(
         player="The Discord member whose match history should be reset",
         reason="Optional reason for the match history reset (for audit trail)"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def reset_player_match_history(self, ctx, player: discord.Member, *, reason: Optional[str] = None):
         """
         Reset a single player's match history, streaks, and win/loss counts.
@@ -1169,6 +1312,10 @@ class AdminCog(commands.Cog):
         
         Requires confirmation via button within 30 seconds.
         """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+            
         try:
             # Defer response for slash commands to prevent timeout
             if ctx.interaction:
@@ -1249,7 +1396,7 @@ class AdminCog(commands.Cog):
     @app_commands.describe(
         reason="Required reason for the mass match history reset (for audit trail)"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def reset_all_match_history(self, ctx, *, reason: str):
         """
         Reset ALL players' match history, streaks, and win/loss counts.
@@ -1268,6 +1415,10 @@ class AdminCog(commands.Cog):
         
         Requires button confirmation.
         """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+            
         try:
             # Defer response for slash commands to prevent timeout
             if ctx.interaction:
@@ -1346,7 +1497,7 @@ class AdminCog(commands.Cog):
         match_id="ID of the match to undo",
         reason="Optional reason for undoing the match (for audit trail)"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def undo_match(self, ctx, match_id: int, *, reason: Optional[str] = None):
         """
         Undo a match and reverse its Elo effects.
@@ -1602,7 +1753,7 @@ class AdminCog(commands.Cog):
     @app_commands.describe(
         reason="Optional reason for the sync (for audit trail)"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def sync_player_stats(self, ctx, *, reason: Optional[str] = None):
         """
         Sync all player overall stats from their event-specific stats.
@@ -1668,7 +1819,7 @@ class AdminCog(commands.Cog):
     @app_commands.describe(
         service="Optional: specific service to clear cache for ('profile', 'leaderboard', 'all')"
     )
-    @app_commands.check(lambda interaction: interaction.user.id == Config.OWNER_DISCORD_ID)
+    @app_commands.default_permissions(administrator=True)
     async def clear_cache(self, ctx, service: Optional[str] = "all"):
         """
         Clear service caches to force fresh data retrieval.
@@ -1741,6 +1892,141 @@ class AdminCog(commands.Cog):
                 description=f"An error occurred: {str(e)}",
                 color=discord.Color.red()
             ), ephemeral=True)
+
+
+class AdminConfirmationView(discord.ui.View):
+    """Generic confirmation view for leaderboard reset operations"""
+    
+    def __init__(self, action: str, admin_id: int, event_id: Optional[int] = None, reason: Optional[str] = None):
+        super().__init__(timeout=60.0)  # Longer timeout for critical operation
+        self.action = action
+        self.admin_id = admin_id
+        self.event_id = event_id
+        self.reason = reason
+        self.confirmed = False
+    
+    async def get_admin_cog(self, interaction: discord.Interaction) -> Optional['AdminCog']:
+        """Get the AdminCog instance from the bot"""
+        return interaction.client.get_cog('AdminCog')
+    
+    @discord.ui.button(label='🚨 CONFIRM RESET', style=discord.ButtonStyle.danger)
+    async def confirm_reset(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Confirm the leaderboard reset operation"""
+        try:
+            # Verify admin permissions
+            if interaction.user.id != self.admin_id:
+                await interaction.response.send_message(
+                    "❌ **Access Denied**\nOnly the admin who initiated this operation can confirm it.",
+                    ephemeral=True
+                )
+                return
+            
+            # Prevent double-confirmation
+            if self.confirmed:
+                await interaction.response.send_message(
+                    "❌ **Already Confirmed**\nThis operation has already been confirmed.",
+                    ephemeral=True
+                )
+                return
+            
+            self.confirmed = True
+            
+            # Disable all buttons
+            for item in self.children:
+                item.disabled = True
+            
+            # Update the message to show processing
+            processing_embed = discord.Embed(
+                title="⏳ Processing Reset...",
+                description="Acquiring distributed locks and executing reset operation...",
+                color=discord.Color.orange()
+            )
+            
+            await interaction.response.edit_message(embed=processing_embed, view=self)
+            
+            # Get AdminCog and execute the appropriate operation
+            admin_cog = await self.get_admin_cog(interaction)
+            if not admin_cog:
+                raise Exception("AdminCog not found")
+            
+            if self.action == "reset_lb_event":
+                result = await admin_cog.admin_ops.reset_leaderboard_event(
+                    admin_discord_id=self.admin_id,
+                    event_id=self.event_id,
+                    reason=self.reason
+                )
+                
+                success_embed = discord.Embed(
+                    title="✅ Leaderboard Reset Complete",
+                    color=discord.Color.green()
+                )
+                success_embed.add_field(name="Event", value=result['event_name'], inline=True)
+                success_embed.add_field(name="Cluster", value=result['cluster_name'], inline=True)
+                success_embed.add_field(name="Records Deleted", value=f"**{result['records_deleted']['leaderboard_scores']}** scores, **{result['records_deleted']['personal_bests']}** personal bests, **{result['records_deleted']['weekly_scores']}** weekly scores", inline=False)
+                success_embed.add_field(name="Reason", value=result['reason'] or "No reason provided", inline=False)
+                
+            elif self.action == "reset_lb_event_all":
+                result = await admin_cog.admin_ops.reset_leaderboard_all_events(
+                    admin_discord_id=self.admin_id,
+                    reason=self.reason
+                )
+                
+                success_embed = discord.Embed(
+                    title="✅ Global Leaderboard Reset Complete",
+                    color=discord.Color.green()
+                )
+                success_embed.add_field(name="Events Reset", value=f"**{result['events_reset']}** events", inline=True)
+                success_embed.add_field(name="Records Deleted", value=f"**{result['records_deleted']['leaderboard_scores']}** total scores, **{result['records_deleted']['personal_bests']}** personal bests, **{result['records_deleted']['weekly_scores']}** weekly scores", inline=False)
+                success_embed.add_field(name="Reason", value=result['reason'] or "No reason provided", inline=False)
+            
+            else:
+                raise Exception(f"Unknown action: {self.action}")
+            
+            await interaction.edit_original_response(embed=success_embed, view=self)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="❌ Reset Failed",
+                description=f"An error occurred during the reset operation: {str(e)}",
+                color=discord.Color.red()
+            )
+            await interaction.edit_original_response(embed=error_embed, view=self)
+    
+    @discord.ui.button(label='❌ Cancel', style=discord.ButtonStyle.secondary)
+    async def cancel_reset(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Cancel the leaderboard reset operation"""
+        try:
+            # Verify admin permissions
+            if interaction.user.id != self.admin_id:
+                await interaction.response.send_message(
+                    "❌ **Access Denied**\nOnly the admin who initiated this operation can cancel it.",
+                    ephemeral=True
+                )
+                return
+            
+            # Disable all buttons
+            for item in self.children:
+                item.disabled = True
+            
+            # Update the message to show cancellation
+            cancel_embed = discord.Embed(
+                title="❌ Operation Cancelled",
+                description="Leaderboard reset operation has been cancelled. No changes were made.",
+                color=discord.Color.red()
+            )
+            
+            await interaction.response.edit_message(embed=cancel_embed, view=self)
+            
+        except Exception as e:
+            await interaction.response.send_message(
+                f"❌ **Error**: {str(e)}",
+                ephemeral=True
+            )
+    
+    async def on_timeout(self):
+        """Handle timeout by disabling all buttons"""
+        for item in self.children:
+            item.disabled = True
 
 
 async def setup(bot):

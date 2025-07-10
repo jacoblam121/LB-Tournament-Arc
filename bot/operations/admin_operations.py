@@ -30,12 +30,13 @@ from sqlalchemy.orm import selectinload
 from bot.database.models import (
     Player, Event, Match, MatchParticipant, EloHistory, PlayerEventStats,
     AdminRole, AdminPermissionLog, MatchUndoLog, UndoMethod, AdminPermissionType, MatchResult,
-    AdminAuditLog, SeasonSnapshot
+    AdminAuditLog, SeasonSnapshot, LeaderboardScore, PlayerEventPersonalBest, WeeklyScores, PlayerWeeklyLeaderboardElo
 )
 from bot.utils.logger import setup_logger
 from bot.utils.elo import EloCalculator
 from bot.config import Config
 from bot.services.player_stats_sync import PlayerStatsSyncService
+from bot.utils.redis_utils import RedisUtils
 
 logger = setup_logger(__name__)
 
@@ -63,9 +64,10 @@ class AdminOperations:
     Elo management, match operations, and comprehensive audit logging.
     """
     
-    def __init__(self, database):
-        """Initialize with database instance"""
+    def __init__(self, database, config_service):
+        """Initialize with database and config service instances"""
         self.db = database
+        self.config_service = config_service
         self.logger = logger
     
     @asynccontextmanager
@@ -245,16 +247,17 @@ class AdminOperations:
                         stats.losses = 0
                         stats.draws = 0
                         
-                        # Create Elo history entry
+                        # Create Elo history entry (handle None old_raw_elo defensively)
+                        safe_old_elo = old_raw_elo if old_raw_elo is not None else Config.STARTING_ELO
                         elo_history = EloHistory(
                             player_id=player.id,
                             event_id=event_id,
                             match_id=None,  # No match associated with admin reset
                             challenge_id=None,  # No challenge associated with admin reset
                             opponent_id=None,  # No opponent for admin reset
-                            old_elo=old_raw_elo,
+                            old_elo=safe_old_elo,
                             new_elo=Config.STARTING_ELO,
-                            elo_change=Config.STARTING_ELO - old_raw_elo,
+                            elo_change=Config.STARTING_ELO - safe_old_elo,
                             match_result=MatchResult.DRAW,  # Neutral result for admin operations
                             k_factor=0  # No competitive k-factor for admin override
                         )
@@ -291,16 +294,17 @@ class AdminOperations:
                         stats.losses = 0
                         stats.draws = 0
                         
-                        # Create Elo history entry
+                        # Create Elo history entry (handle None old_raw_elo defensively)
+                        safe_old_elo = old_raw_elo if old_raw_elo is not None else Config.STARTING_ELO
                         elo_history = EloHistory(
                             player_id=player.id,
                             event_id=stats.event_id,
                             match_id=None,
                             challenge_id=None,  # No challenge associated with admin reset
                             opponent_id=None,  # No opponent for admin reset
-                            old_elo=old_raw_elo,
+                            old_elo=safe_old_elo,
                             new_elo=Config.STARTING_ELO,
-                            elo_change=Config.STARTING_ELO - old_raw_elo,
+                            elo_change=Config.STARTING_ELO - safe_old_elo,
                             match_result=MatchResult.DRAW,  # Neutral result for admin operations
                             k_factor=0  # No competitive k-factor for admin override
                         )
@@ -434,16 +438,17 @@ class AdminOperations:
                         stats.losses = 0
                         stats.draws = 0
                         
-                        # Create Elo history entry
+                        # Create Elo history entry (handle None old_raw_elo defensively)
+                        safe_old_elo = old_raw_elo if old_raw_elo is not None else Config.STARTING_ELO
                         elo_history = EloHistory(
                             player_id=stats.player_id,
                             event_id=event_id,
                             match_id=None,
                             challenge_id=None,  # No challenge associated with admin reset
                             opponent_id=None,  # No opponent for admin reset
-                            old_elo=old_raw_elo,
+                            old_elo=safe_old_elo,
                             new_elo=Config.STARTING_ELO,
-                            elo_change=Config.STARTING_ELO - old_raw_elo,
+                            elo_change=Config.STARTING_ELO - safe_old_elo,
                             match_result=MatchResult.DRAW,  # Neutral result for admin operations
                             k_factor=0  # No competitive k-factor for admin override
                         )
@@ -484,16 +489,17 @@ class AdminOperations:
                         stats.losses = 0
                         stats.draws = 0
                         
-                        # Create Elo history entry
+                        # Create Elo history entry (handle None old_raw_elo defensively)
+                        safe_old_elo = old_raw_elo if old_raw_elo is not None else Config.STARTING_ELO
                         elo_history = EloHistory(
                             player_id=stats.player_id,
                             event_id=stats.event_id,
                             match_id=None,
                             challenge_id=None,  # No challenge associated with admin reset
                             opponent_id=None,  # No opponent for admin reset
-                            old_elo=old_raw_elo,
+                            old_elo=safe_old_elo,
                             new_elo=Config.STARTING_ELO,
-                            elo_change=Config.STARTING_ELO - old_raw_elo,
+                            elo_change=Config.STARTING_ELO - safe_old_elo,
                             match_result=MatchResult.DRAW,  # Neutral result for admin operations
                             k_factor=0  # No competitive k-factor for admin override
                         )
@@ -913,3 +919,497 @@ class AdminOperations:
             except Exception as e:
                 self.logger.error(f"Data population failed: {e}")
                 raise AdminOperationError(f"Data population operation failed: {e}")
+
+    async def reset_leaderboard_event(
+        self,
+        admin_discord_id: int,
+        event_id: int,
+        reason: Optional[str] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Dict[str, Any]:
+        """
+        Reset leaderboard data for a specific event with race condition protection.
+        
+        This operation uses distributed locking to prevent race conditions with
+        scoring calculations and provides atomic deletion of all leaderboard data.
+        
+        Args:
+            admin_discord_id: Discord ID of admin performing reset
+            event_id: Event ID to reset
+            reason: Admin-provided reason for reset
+            session: Optional database session
+            
+        Returns:
+            Dict containing operation results and affected counts
+        """
+        redis_client = None
+        lock_key = f"leaderboard_exclusive:{event_id}"
+        
+        async with self._get_session_context(session) as s:
+            try:
+                # Check admin permissions
+                if not await self._validate_admin_permissions(s, admin_discord_id, AdminPermissionType.RESET_LEADERBOARD):
+                    raise AdminOperationError(f"Admin {admin_discord_id} lacks RESET_LEADERBOARD permission")
+                
+                # Validate event exists
+                event_query = select(Event).where(Event.id == event_id)
+                event_result = await s.execute(event_query)
+                event = event_result.scalar_one_or_none()
+                
+                if not event:
+                    raise AdminValidationError(f"Event with ID {event_id} not found")
+                
+                # Get Redis client for distributed locking
+                redis_client = await self._get_redis_client()
+                
+                # Use exclusive lock to prevent race conditions
+                
+                if redis_client:
+                    # Try to acquire lock with 30-minute timeout
+                    is_locked = await redis_client.set(lock_key, "1", ex=1800, nx=True)
+                    
+                    if not is_locked:
+                        raise AdminOperationError(f"Leaderboard reset for event {event_id} is already in progress")
+                
+                # Count records before deletion for audit
+                counts = await self._count_leaderboard_records(s, event_id)
+                
+                # Delete all leaderboard data (CASCADE handles related records)
+                await s.execute(
+                    delete(LeaderboardScore).where(LeaderboardScore.event_id == event_id)
+                )
+                await s.execute(
+                    delete(PlayerEventPersonalBest).where(PlayerEventPersonalBest.event_id == event_id)
+                )
+                await s.execute(
+                    delete(WeeklyScores).where(WeeklyScores.event_id == event_id)
+                )
+                await s.execute(
+                    delete(PlayerWeeklyLeaderboardElo).where(PlayerWeeklyLeaderboardElo.event_id == event_id)
+                )
+                
+                # Reset event statistics
+                await s.execute(
+                    update(Event)
+                    .where(Event.id == event_id)
+                    .values(
+                        score_count=0,
+                        score_mean=0.0,
+                        score_m2=0.0
+                    )
+                )
+                
+                # Create audit log
+                await self._create_audit_log(
+                    s,
+                    admin_discord_id,
+                    "RESET_LEADERBOARD_EVENT",
+                    target_type="event",
+                    target_id=event_id,
+                    details=counts,
+                    reason=reason,
+                    affected_players_count=counts.get('unique_players', 0),
+                    affected_events_count=1
+                )
+                
+                self.logger.info(f"Leaderboard reset for event {event_id} completed by admin {admin_discord_id}")
+                
+                # Commit if we own the session
+                if not session:
+                    await s.commit()
+                
+                return {
+                    'success': True,
+                    'event_id': event_id,
+                    'event_name': event.name,
+                    'cluster_name': event.cluster.name if event.cluster else 'Unknown Cluster',
+                    'records_deleted': counts,
+                    'reason': reason
+                }
+                        
+            except (AdminPermissionError, AdminValidationError):
+                raise
+            except Exception as e:
+                self.logger.error(f"Leaderboard reset failed: {e}")
+                raise AdminOperationError(f"Leaderboard reset operation failed: {e}")
+            finally:
+                # Always release the lock
+                if redis_client:
+                    await redis_client.delete(lock_key)
+
+    async def reset_leaderboard_all_events(
+        self,
+        admin_discord_id: int,
+        reason: Optional[str] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Dict[str, Any]:
+        """
+        Reset leaderboard data for ALL events with race condition protection.
+        
+        This operation uses distributed locking to prevent race conditions with
+        scoring calculations and provides atomic deletion of all leaderboard data.
+        
+        Args:
+            admin_discord_id: Discord ID of admin performing reset
+            reason: Admin-provided reason for reset
+            session: Optional database session
+            
+        Returns:
+            Dict containing operation results and affected counts
+        """
+        redis_client = None
+        global_lock_key = "leaderboard_global_reset"
+        
+        async with self._get_session_context(session) as s:
+            try:
+                # Check admin permissions
+                if not await self._validate_admin_permissions(s, admin_discord_id, AdminPermissionType.START_NEW_SEASON):
+                    raise AdminOperationError(f"Admin {admin_discord_id} lacks START_NEW_SEASON permission")
+                
+                # Get all events
+                events_query = select(Event)
+                events_result = await s.execute(events_query)
+                events = events_result.scalars().all()
+                
+                if not events:
+                    raise AdminValidationError("No events found in the system")
+                
+                # Get Redis client for distributed locking
+                redis_client = await self._get_redis_client()
+                
+                # Use global lock to prevent race conditions
+                
+                if redis_client:
+                    # Try to acquire lock with 30-minute timeout
+                    is_locked = await redis_client.set(global_lock_key, "1", ex=1800, nx=True)
+                    
+                    if not is_locked:
+                        raise AdminOperationError("Global leaderboard reset is already in progress")
+                
+                # Count records before deletion for audit
+                total_counts = {}
+                
+                for event in events:
+                    event_counts = await self._count_leaderboard_records(s, event.id)
+                    for key, value in event_counts.items():
+                        total_counts[key] = total_counts.get(key, 0) + value
+                
+                # Delete all leaderboard data (CASCADE handles related records)
+                await s.execute(delete(LeaderboardScore))
+                await s.execute(delete(PlayerEventPersonalBest))
+                await s.execute(delete(WeeklyScores))
+                await s.execute(delete(PlayerWeeklyLeaderboardElo))
+                
+                # Reset event statistics for all events
+                await s.execute(
+                    update(Event).values(
+                        score_count=0,
+                        score_mean=0.0,
+                        score_m2=0.0
+                    )
+                )
+                
+                # Create audit log
+                await self._create_audit_log(
+                    s,
+                    admin_discord_id,
+                    "RESET_LEADERBOARD_ALL_EVENTS",
+                    target_type="global",
+                    target_id=None,
+                    details=total_counts,
+                    reason=reason,
+                    affected_players_count=total_counts.get('unique_players', 0),
+                    affected_events_count=len(events)
+                )
+                
+                self.logger.info(f"Global leaderboard reset completed by admin {admin_discord_id}")
+                
+                # Commit if we own the session
+                if not session:
+                    await s.commit()
+                
+                return {
+                    'success': True,
+                    'events_reset': len(events),
+                    'records_deleted': total_counts,
+                    'reason': reason
+                }
+                        
+            except (AdminPermissionError, AdminValidationError):
+                raise
+            except Exception as e:
+                self.logger.error(f"Global leaderboard reset failed: {e}")
+                raise AdminOperationError(f"Global leaderboard reset operation failed: {e}")
+            finally:
+                    # Always release the lock
+                    if redis_client:
+                        await redis_client.delete(global_lock_key)
+
+    async def _get_redis_client(self):
+        """Get Redis client for distributed locking. Returns None if Redis is unavailable."""
+        try:
+            # Use centralized Redis utilities
+            redis_client = await RedisUtils.create_redis_client()
+            if redis_client is None:
+                self.logger.warning("No secure Redis URL configured. Admin operations will run without locking.")
+                return None
+            return redis_client
+        except Exception as e:
+            self.logger.warning(f"Redis unavailable for distributed locking: {e}")
+            return None
+
+    async def _count_leaderboard_records(self, session: AsyncSession, event_id: int) -> Dict[str, int]:
+        """Count leaderboard records for audit logging."""
+        # Count LeaderboardScore records
+        leaderboard_scores_query = select(func.count(LeaderboardScore.id)).where(LeaderboardScore.event_id == event_id)
+        leaderboard_scores_result = await session.execute(leaderboard_scores_query)
+        leaderboard_scores_count = leaderboard_scores_result.scalar() or 0
+        
+        # Count PlayerEventPersonalBest records
+        personal_bests_query = select(func.count(PlayerEventPersonalBest.id)).where(PlayerEventPersonalBest.event_id == event_id)
+        personal_bests_result = await session.execute(personal_bests_query)
+        personal_bests_count = personal_bests_result.scalar() or 0
+        
+        # Count WeeklyScores records
+        weekly_scores_query = select(func.count(WeeklyScores.id)).where(WeeklyScores.event_id == event_id)
+        weekly_scores_result = await session.execute(weekly_scores_query)
+        weekly_scores_count = weekly_scores_result.scalar() or 0
+        
+        # Count PlayerWeeklyLeaderboardElo records
+        weekly_elo_query = select(func.count(PlayerWeeklyLeaderboardElo.id)).where(PlayerWeeklyLeaderboardElo.event_id == event_id)
+        weekly_elo_result = await session.execute(weekly_elo_query)
+        weekly_elo_count = weekly_elo_result.scalar() or 0
+        
+        # Count unique players affected
+        unique_players_query = select(func.count(func.distinct(LeaderboardScore.player_id))).where(LeaderboardScore.event_id == event_id)
+        unique_players_result = await session.execute(unique_players_query)
+        unique_players_count = unique_players_result.scalar() or 0
+        
+        return {
+            'leaderboard_scores': leaderboard_scores_count,
+            'personal_bests': personal_bests_count,
+            'weekly_scores': weekly_scores_count,
+            'weekly_elo': weekly_elo_count,
+            'unique_players': unique_players_count
+        }
+
+    async def reset_player_match_history(
+        self,
+        admin_discord_id: int,
+        player_id: int,
+        reason: Optional[str] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Dict[str, Any]:
+        """
+        Reset a single player's complete match history and statistics.
+        
+        This operation removes all match history, resets event statistics,
+        and zeroes player aggregate statistics with full audit logging.
+        
+        Args:
+            admin_discord_id: Discord ID of admin performing reset
+            player_id: Database ID of player to reset
+            reason: Admin-provided reason for reset
+            session: Optional database session
+            
+        Returns:
+            Dictionary with reset results and affected counts
+            
+        Raises:
+            AdminPermissionError: If admin lacks required permissions
+            AdminValidationError: If player not found
+            AdminOperationError: If operation fails
+        """
+        async with self._get_session_context(session) as s:
+            try:
+                # Validate permissions - match history affects ratings
+                if not await self._validate_admin_permissions(s, admin_discord_id, AdminPermissionType.MODIFY_RATINGS):
+                    raise AdminPermissionError(f"Admin {admin_discord_id} lacks MODIFY_RATINGS permission")
+                
+                # Get player with row-level lock for consistency
+                player_query = select(Player).where(Player.id == player_id)
+                result = await s.execute(player_query)
+                player = result.scalar_one_or_none()
+                
+                if not player:
+                    raise AdminValidationError(f"Player with ID {player_id} not found")
+                
+                # Capture pre-reset statistics for audit
+                old_stats = {
+                    'matches_played': player.matches_played,
+                    'wins': player.wins,
+                    'losses': player.losses,
+                    'draws': player.draws,
+                    'current_streak': player.current_streak,
+                    'max_streak': player.max_streak
+                }
+                
+                # Delete all match history for this player
+                history_delete = delete(EloHistory).where(EloHistory.player_id == player_id)
+                history_result = await s.execute(history_delete)
+                histories_deleted = history_result.rowcount or 0
+                
+                # Delete all event statistics for this player
+                stats_delete = delete(PlayerEventStats).where(PlayerEventStats.player_id == player_id)
+                stats_result = await s.execute(stats_delete)
+                event_stats_deleted = stats_result.rowcount or 0
+                
+                # Reset player aggregate statistics
+                player.matches_played = 0
+                player.wins = 0
+                player.losses = 0
+                player.draws = 0
+                player.current_streak = 0
+                player.max_streak = 0
+                
+                # Create comprehensive audit log
+                await self._create_audit_log(
+                    s,
+                    admin_discord_id,
+                    "RESET_PLAYER_MATCH_HISTORY",
+                    target_type="player",
+                    target_id=player_id,
+                    details={
+                        'player_discord_id': player.discord_id,
+                        'player_username': player.username,
+                        'histories_deleted': histories_deleted,
+                        'event_stats_deleted': event_stats_deleted,
+                        'old_stats': old_stats,
+                        'reason': reason
+                    },
+                    reason=reason,
+                    affected_players_count=1,
+                    affected_events_count=event_stats_deleted  # Number of events this player was in
+                )
+                
+                self.logger.info(f"Match history reset completed for player {player_id} by admin {admin_discord_id}")
+                
+                # Commit if we own the session
+                if not session:
+                    await s.commit()
+                
+                return {
+                    'success': True,
+                    'player_id': player_id,
+                    'player_discord_id': player.discord_id,
+                    'player_username': player.username,
+                    'histories_deleted': histories_deleted,
+                    'event_stats_deleted': event_stats_deleted,
+                    'old_stats': old_stats,
+                    'reason': reason
+                }
+                
+            except (AdminPermissionError, AdminValidationError):
+                raise
+            except Exception as e:
+                self.logger.error(f"Match history reset failed for player {player_id}: {e}")
+                raise AdminOperationError(f"Match history reset operation failed: {e}")
+    
+    async def reset_all_match_history(
+        self,
+        admin_discord_id: int,
+        reason: Optional[str] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Dict[str, Any]:
+        """
+        Reset ALL players' match history and statistics system-wide.
+        
+        This is a destructive operation that removes all match history,
+        resets all event statistics, and zeroes all player aggregates.
+        
+        Args:
+            admin_discord_id: Discord ID of admin performing reset
+            reason: Admin-provided reason for reset
+            session: Optional database session
+            
+        Returns:
+            Dictionary with reset results and affected counts
+            
+        Raises:
+            AdminPermissionError: If admin lacks required permissions
+            AdminOperationError: If operation fails
+        """
+        async with self._get_session_context(session) as s:
+            try:
+                # Validate permissions - mass reset requires highest level
+                if not await self._validate_admin_permissions(s, admin_discord_id, AdminPermissionType.START_NEW_SEASON):
+                    raise AdminPermissionError(f"Admin {admin_discord_id} lacks START_NEW_SEASON permission")
+                
+                # Get pre-reset counts for audit
+                total_players_query = select(func.count(Player.id))
+                total_players_result = await s.execute(total_players_query)
+                total_players = total_players_result.scalar() or 0
+                
+                total_histories_query = select(func.count(EloHistory.id))
+                total_histories_result = await s.execute(total_histories_query)
+                total_histories = total_histories_result.scalar() or 0
+                
+                total_event_stats_query = select(func.count(PlayerEventStats.id))
+                total_event_stats_result = await s.execute(total_event_stats_query)
+                total_event_stats = total_event_stats_result.scalar() or 0
+                
+                # Bulk delete all match history (performance optimized)
+                history_delete = delete(EloHistory)
+                history_result = await s.execute(history_delete)
+                histories_deleted = history_result.rowcount or 0
+                
+                # Bulk delete all player event statistics
+                event_stats_delete = delete(PlayerEventStats)
+                event_stats_result = await s.execute(event_stats_delete)
+                event_stats_deleted = event_stats_result.rowcount or 0
+                
+                # Bulk reset all player aggregate statistics
+                player_update = update(Player).values(
+                    matches_played=0,
+                    wins=0,
+                    losses=0,
+                    draws=0,
+                    current_streak=0,
+                    max_streak=0
+                )
+                player_result = await s.execute(player_update)
+                players_updated = player_result.rowcount or 0
+                
+                # Create comprehensive audit log for mass operation
+                await self._create_audit_log(
+                    s,
+                    admin_discord_id,
+                    "RESET_ALL_MATCH_HISTORY",
+                    target_type="system",
+                    target_id=None,
+                    details={
+                        'total_players_before': total_players,
+                        'total_histories_before': total_histories,
+                        'total_event_stats_before': total_event_stats,
+                        'histories_deleted': histories_deleted,
+                        'event_stats_deleted': event_stats_deleted,
+                        'players_updated': players_updated,
+                        'reason': reason
+                    },
+                    reason=reason,
+                    affected_players_count=players_updated,
+                    affected_events_count=0  # No specific events affected, all events impacted
+                )
+                
+                self.logger.info(f"Mass match history reset completed by admin {admin_discord_id}")
+                
+                # Commit if we own the session
+                if not session:
+                    await s.commit()
+                
+                return {
+                    'success': True,
+                    'histories_deleted': histories_deleted,
+                    'event_stats_deleted': event_stats_deleted,
+                    'players_updated': players_updated,
+                    'total_players_before': total_players,
+                    'total_histories_before': total_histories,
+                    'total_event_stats_before': total_event_stats,
+                    'reason': reason
+                }
+                
+            except AdminPermissionError:
+                raise
+            except Exception as e:
+                self.logger.error(f"Mass match history reset failed: {e}")
+                raise AdminOperationError(f"Mass match history reset operation failed: {e}")

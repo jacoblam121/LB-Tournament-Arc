@@ -550,6 +550,8 @@ class AdminPermissionType(Enum):
     GRANT_TICKETS = "grant_tickets"
     MANAGE_EVENTS = "manage_events"
     MANAGE_CHALLENGES = "manage_challenges"
+    RESET_LEADERBOARD = "reset_leaderboard"
+    START_NEW_SEASON = "start_new_season"
 
 class PermissionAction(Enum):
     """Actions that can be performed on admin permissions"""
@@ -694,7 +696,7 @@ class PlayerEventStats(Base):
     
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False)
     
     # Dual-track Elo system
     raw_elo = Column(Integer, default=1000)
@@ -756,7 +758,7 @@ class LeaderboardScore(Base):
     
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False)
     score = Column(Float, nullable=False)
     # Use values_callable to store enum values ('all_time', 'weekly') instead of names ('ALL_TIME', 'WEEKLY')
     # This matches the database enum type created in migrations and the CHECK constraint expectations
@@ -796,7 +798,7 @@ class PlayerEventPersonalBest(Base):
     
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False)
     
     best_score = Column(Float, nullable=False)  # Actual score (points, time, etc.)
     timestamp_achieved = Column(DateTime, default=func.now())
@@ -823,7 +825,7 @@ class WeeklyScores(Base):
     
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False)
     
     score = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=func.now())
@@ -846,7 +848,7 @@ class PlayerWeeklyLeaderboardElo(Base):
     
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey('players.id'), nullable=False)
-    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    event_id = Column(Integer, ForeignKey('events.id', ondelete='CASCADE'), nullable=False)
     
     week_number = Column(Integer, nullable=False)  # Season week number
     weekly_elo_score = Column(Integer, nullable=False)

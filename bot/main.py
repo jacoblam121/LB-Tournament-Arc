@@ -76,10 +76,15 @@ class TournamentBot(commands.Bot):
                 await self.load_extension(cog)
                 self.logger.info(f"Loaded cog: {cog}")
             except Exception as e:
-                self.logger.error(f"Failed to load cog {cog}: {e}")
+                self.logger.error(f"Failed to load cog {cog}: {e}", exc_info=True)
     
     async def _sync_commands(self):
         """Sync slash commands with Discord"""
+        # Verify commands exist before attempting to sync
+        if not self.tree.get_commands():
+            self.logger.warning("No application commands found to sync. Check for cog loading errors.")
+            return
+            
         try:
             guild_ids = Config.get_guild_ids()
             
@@ -101,15 +106,19 @@ class TournamentBot(commands.Bot):
                                 self.logger.info(f"  - {cmd.name}: {cmd.description}")
                         
                         total_synced += len(synced)
+                    except discord.errors.Forbidden as e:
+                        self.logger.error(f"Permission error syncing to guild {guild_id}. Ensure the bot has the 'application.commands' scope and is in the guild.", exc_info=True)
+                    except discord.errors.HTTPException as e:
+                        self.logger.error(f"HTTP error syncing to guild {guild_id}. Status: {e.status}, Response: {e.text}", exc_info=True)
                     except Exception as guild_error:
-                        self.logger.error(f"Failed to sync commands to guild {guild_id}: {guild_error}")
-                        # Continue with other guilds
-                        continue
+                        self.logger.error(f"An unexpected error occurred while syncing to guild {guild_id}", exc_info=True)
+                    # Continue with other guilds
+                    continue
                 
                 self.logger.info(f"Multi-guild sync complete: {total_synced} total command instances deployed")
             else:
                 # Global sync (can take up to 1 hour, works everywhere)
-                self.logger.info("Attempting to sync commands globally...")
+                self.logger.info("Attempting to sync commands globally... (Note: This can take up to an hour to propagate)")
                 synced = await self.tree.sync()
                 self.logger.info(f"Successfully synced {len(synced)} command(s) globally")
                 for cmd in synced:

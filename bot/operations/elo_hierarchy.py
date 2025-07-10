@@ -5,6 +5,7 @@ Calculates cluster and overall Elo from event-level ratings using prestige weigh
 Implements the hierarchical tournament structure from planA.md lines 519-577.
 """
 
+import logging
 from typing import List, Dict, Optional
 from collections import defaultdict
 from sqlalchemy import select
@@ -115,12 +116,34 @@ class EloHierarchyCalculator:
         if not isinstance(player_id, int):
             raise TypeError("player_id must be an integer")
             
-        event_stats = await self._fetch_event_stats(player_id, cluster_id)
-        
-        # Group event stats by cluster
+        # 1. Fetch all of the player's event stats to identify relevant clusters
+        player_event_stats = await self._fetch_event_stats(player_id, cluster_id)
+        player_elos_by_event_id = {stat.event_id: stat.raw_elo for stat in player_event_stats}
+
+        # 2. Determine the set of clusters to calculate
+        if cluster_id is not None:
+            target_cluster_ids = {cluster_id}
+        else:
+            target_cluster_ids = {stat.event.cluster_id for stat in player_event_stats}
+
+        if not target_cluster_ids:
+            return {}
+
+        # 3. Fetch ALL events for the target clusters
+        all_events_in_clusters_result = await self.session.execute(
+            select(Event).where(
+                Event.cluster_id.in_(target_cluster_ids),
+                Event.is_active == True
+            )
+        )
+        all_events = all_events_in_clusters_result.scalars().all()
+
+        # 4. Group all cluster events by cluster ID
         clusters = defaultdict(list)
-        for stat in event_stats:
-            clusters[stat.event.cluster_id].append(stat.raw_elo)
+        for event in all_events:
+            # For each event, get the player's Elo or default to 1000
+            elo = player_elos_by_event_id.get(event.id, 1000)
+            clusters[event.cluster_id].append(elo)
         
         cluster_elos = {}
         
@@ -142,6 +165,11 @@ class EloHierarchyCalculator:
             
             # Calculate weighted average
             cluster_elo = self._weighted_average(elos, weights)
+            
+            # Debug logging to show prestige weighting calculation
+            played_events = sum(1 for elo in elos if elo != 1000)
+            logger = logging.getLogger(__name__)
+            logger.debug(f"[EloHierarchy] Cluster {cid}: {len(elos)} total events, {played_events} played. Elos={elos[:5]}{'...' if len(elos) > 5 else ''}, Cluster Elo={round(cluster_elo)}")
             
             # Return raw value (floor will be applied separately for scoring_elo)
             cluster_elos[cid] = round(cluster_elo)

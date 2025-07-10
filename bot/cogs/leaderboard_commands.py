@@ -29,7 +29,11 @@ class LeaderboardCommands(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.leaderboard_service = LeaderboardService(bot.db.session_factory, bot.config_service)
+        # Create scoring service first for dependency injection
+        from bot.services.leaderboard_scoring_service import LeaderboardScoringService
+        self.scoring_service = LeaderboardScoringService(bot.db.session_factory, bot.config_service)
+        # Inject scoring service into leaderboard service
+        self.leaderboard_service = LeaderboardService(bot.db.session_factory, bot.config_service, self.scoring_service)
     
     @app_commands.command(name="submit-event-score", description="Submit a score for a leaderboard event")
     @app_commands.describe(

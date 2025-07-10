@@ -168,10 +168,14 @@ class ProfileService(BaseService):
         # Get cluster ranks for the player FIRST (since ClusterStats is frozen)
         cluster_ranks = await self._fetch_cluster_ranks(session, player_id)
         
-        # Use EloHierarchyCalculator for correct prestige-weighted cluster elos
-        from bot.operations.elo_hierarchy import EloHierarchyCalculator
-        calculator = EloHierarchyCalculator(session)
-        cluster_elos = await calculator.calculate_cluster_elo(player_id)
+        # Use injected EloHierarchyService for correct prestige-weighted cluster elos
+        if self.elo_hierarchy_service:
+            cluster_elos = await self.elo_hierarchy_service.calculate_cluster_elo(player_id)
+        else:
+            # Fallback if service not injected - create local instance
+            from bot.operations.elo_hierarchy import EloHierarchyCalculator
+            calculator = EloHierarchyCalculator(session)
+            cluster_elos = await calculator.calculate_cluster_elo(player_id)
         
         # Get match counts per cluster (this part we still need from direct queries)
         match_count_query = select(
@@ -210,7 +214,8 @@ class ProfileService(BaseService):
             ))
         
         # Sort by raw elo descending for proper top/bottom cluster identification
-        cluster_stats.sort(key=lambda x: x.raw_elo, reverse=True)
+        # Handle potential None values in raw_elo gracefully
+        cluster_stats.sort(key=lambda x: x.raw_elo if x.raw_elo is not None else 0, reverse=True)
         
         return cluster_stats
     

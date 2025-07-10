@@ -5,6 +5,9 @@ Provides efficient leaderboard queries with caching and pagination support.
 """
 
 from typing import Optional, List, TYPE_CHECKING
+import asyncio
+import time
+import logging
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +16,6 @@ from bot.services.base import BaseService
 from bot.data_models.leaderboard import LeaderboardPage, LeaderboardEntry
 from bot.database.models import Player, Cluster, Event, PlayerEventStats, ScoreDirection
 from bot.utils.ranking import RankingUtility
-import time
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -22,43 +23,49 @@ logger = logging.getLogger(__name__)
 class LeaderboardService(BaseService):
     """Service for leaderboard queries and ranking with caching."""
     
-    def __init__(self, session_factory, config_service):
+    def __init__(self, session_factory, config_service, scoring_service=None):
         super().__init__(session_factory)
         self.config_service = config_service
+        self.scoring_service = scoring_service  # Optional dependency injection
         # TTL cache for leaderboard pages
         self._cache = {}
         self._cache_timestamps = {}
         self._cache_ttl = 180  # 3 minutes for leaderboards
         self._cache_max_size = 500
+        self._cache_lock = asyncio.Lock()  # Thread safety for cache operations
+        # Background task tracking for proper lifecycle management
+        self._background_tasks: set = set()
     
-    def _is_cache_valid(self, key: str) -> bool:
+    async def _is_cache_valid(self, key: str) -> bool:
         """Check if cached leaderboard data is still valid."""
-        if key not in self._cache_timestamps:
-            return False
-        return time.time() - self._cache_timestamps[key] < self._cache_ttl
+        async with self._cache_lock:
+            if key not in self._cache_timestamps:
+                return False
+            return time.time() - self._cache_timestamps[key] < self._cache_ttl
     
-    def _cleanup_cache(self):
+    async def _cleanup_cache(self):
         """Remove expired entries and enforce size limits."""
-        current_time = time.time()
-        # Remove expired entries
-        expired_keys = [
-            key for key, timestamp in self._cache_timestamps.items()
-            if current_time - timestamp >= self._cache_ttl
-        ]
-        for key in expired_keys:
-            self._cache.pop(key, None)
-            self._cache_timestamps.pop(key, None)
-        
-        # Enforce size limit by removing oldest entries
-        if len(self._cache) > self._cache_max_size:
-            sorted_keys = sorted(
-                self._cache_timestamps.items(),
-                key=lambda x: x[1]
-            )
-            keys_to_remove = [key for key, _ in sorted_keys[:len(self._cache) - self._cache_max_size]]
-            for key in keys_to_remove:
+        async with self._cache_lock:
+            current_time = time.time()
+            # Remove expired entries
+            expired_keys = [
+                key for key, timestamp in self._cache_timestamps.items()
+                if current_time - timestamp >= self._cache_ttl
+            ]
+            for key in expired_keys:
                 self._cache.pop(key, None)
                 self._cache_timestamps.pop(key, None)
+            
+            # Enforce size limit by removing oldest entries
+            if len(self._cache) > self._cache_max_size:
+                sorted_keys = sorted(
+                    self._cache_timestamps.items(),
+                    key=lambda x: x[1]
+                )
+                keys_to_remove = [key for key, _ in sorted_keys[:len(self._cache) - self._cache_max_size]]
+                for key in keys_to_remove:
+                    self._cache.pop(key, None)
+                    self._cache_timestamps.pop(key, None)
     
     async def get_page(
         self,
@@ -83,11 +90,12 @@ class LeaderboardService(BaseService):
         
         # Check cache first
         cache_key = f"leaderboard:{leaderboard_type}:{sort_by}:{cluster_name}:{event_name}:{page}:{page_size}:{include_ghosts}"
-        if self._is_cache_valid(cache_key):
-            return self._cache[cache_key]
+        if await self._is_cache_valid(cache_key):
+            async with self._cache_lock:
+                return self._cache[cache_key]
         
         # Cleanup cache periodically
-        self._cleanup_cache()
+        await self._cleanup_cache()
         async with self.get_session() as session:
             # Special handling for cluster leaderboards to use EloHierarchyCalculator
             if leaderboard_type == "cluster":
@@ -152,8 +160,9 @@ class LeaderboardService(BaseService):
             )
             
             # Cache the result
-            self._cache[cache_key] = leaderboard_page
-            self._cache_timestamps[cache_key] = time.time()
+            async with self._cache_lock:
+                self._cache[cache_key] = leaderboard_page
+                self._cache_timestamps[cache_key] = time.time()
             
             return leaderboard_page
     
@@ -258,11 +267,28 @@ class LeaderboardService(BaseService):
     # REMOVED: _build_ranking_query method - replaced with RankingUtility.create_player_ranking_cte()
     # for Phase 2.3 Implementation Coordination consistency
     
-    def clear_cache(self):
+    async def clear_cache(self):
         """Clears the entire leaderboard cache."""
-        self._cache.clear()
-        self._cache_timestamps.clear()
+        async with self._cache_lock:
+            self._cache.clear()
+            self._cache_timestamps.clear()
         logger.info("Leaderboard cache cleared.")
+    
+    async def cleanup(self):
+        """Cleanup background tasks and resources for graceful shutdown."""
+        if self._background_tasks:
+            logger.info(f"Waiting for {len(self._background_tasks)} background tasks to complete...")
+            # Cancel all pending background tasks
+            for task in self._background_tasks:
+                if not task.done():
+                    task.cancel()
+            
+            # Wait for all tasks to complete or be cancelled
+            if self._background_tasks:
+                await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            
+            self._background_tasks.clear()
+            logger.info("All background tasks cleaned up.")
     
     async def get_cluster_names(self) -> List[str]:
         """Get list of cluster names for autocomplete."""
@@ -285,7 +311,6 @@ class LeaderboardService(BaseService):
     
     async def submit_score(self, discord_id: int, display_name: str, event_id: int, raw_score: float, guild_id: int, max_retries: int = None) -> dict:
         """Submit score with retry logic for race conditions and transaction atomicity."""
-        import asyncio
         from sqlalchemy.exc import IntegrityError
         from bot.utils.leaderboard_exceptions import TransactionError, DatabaseError
         
@@ -294,7 +319,23 @@ class LeaderboardService(BaseService):
         
         for attempt in range(max_retries):
             try:
-                return await self._submit_score_attempt(discord_id, display_name, event_id, raw_score, guild_id)
+                result = await self._submit_score_attempt(discord_id, display_name, event_id, raw_score, guild_id)
+                
+                # Trigger background Z-score calculation AFTER transaction commits
+                if result.get('is_personal_best') and self.scoring_service is not None:
+                    # Small delay to ensure database consistency across replicas
+                    replica_delay = self.config_service.get('leaderboard_system.replica_consistency_delay', 0.1)
+                    await asyncio.sleep(replica_delay)
+                    
+                    # Create background task now that transaction is committed
+                    task = asyncio.create_task(self.scoring_service.calculate_all_time_elos_background(event_id))
+                    self._background_tasks.add(task)
+                    # Remove task from set when it completes to prevent memory leaks
+                    task.add_done_callback(self._background_tasks.discard)
+                    logger.info(f"Triggered background Z-score calculation for event {event_id} after PB submission")
+                
+                return result
+                
             except IntegrityError as e:
                 if attempt == max_retries - 1:
                     logger.error(f"Score submission failed after {max_retries} attempts: {e}")
@@ -416,6 +457,8 @@ class LeaderboardService(BaseService):
                     )
                 )
                 current_best = updated_pb.score if updated_pb else raw_score
+                
+                # Background task moved to submit_score() to run AFTER transaction commits
                 
                 return {
                     'is_personal_best': is_pb,

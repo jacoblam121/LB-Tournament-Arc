@@ -731,8 +731,9 @@ class MatchOperations:
                 
                 for participant in match.participants:
                     try:
+                        # Calculate ALL cluster elos to ensure prestige weighting works correctly
                         cluster_elos = await cluster_elo_calculator.calculate_cluster_elo(
-                            participant.player_id, cluster_id
+                            participant.player_id  # Don't pass cluster_id to get all clusters
                         )
                         cluster_elos_before[participant.player_id] = cluster_elos.get(cluster_id, 1000)
                     except Exception as e:
@@ -853,8 +854,9 @@ class MatchOperations:
                 # Calculate cluster ELO "after" values and store in participants
                 for participant in match.participants:
                     try:
+                        # Calculate ALL cluster elos to ensure prestige weighting works correctly
                         cluster_elos_after = await cluster_elo_calculator.calculate_cluster_elo(
-                            participant.player_id, cluster_id
+                            participant.player_id  # Don't pass cluster_id to get all clusters
                         )
                         participant.cluster_elo_after = cluster_elos_after.get(cluster_id, 1000)
                         participant.cluster_elo_change = participant.cluster_elo_after - participant.cluster_elo_before

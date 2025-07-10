@@ -1,4 +1,5 @@
 import math
+import logging
 from typing import Tuple
 from bot.config import Config
 
@@ -32,13 +33,28 @@ class EloCalculator:
             K-factor to use in Elo calculation
         """
         if config_service is not None:
-            # Use dynamic configuration from ConfigurationService
-            k_factor_provisional = config_service.get('elo.k_factor_provisional', Config.K_FACTOR_PROVISIONAL)
-            k_factor_standard = config_service.get('elo.k_factor_standard', Config.K_FACTOR_STANDARD)
-            provisional_match_count = config_service.get('elo.provisional_match_count', Config.PROVISIONAL_MATCH_COUNT)
+            # Use dynamic configuration with backward compatibility
+            # Check for None explicitly to handle 0 values correctly
+            k_factor_provisional = config_service.get('elo.k_factor_provisional')
+            if k_factor_provisional is None:
+                k_factor_provisional = config_service.get('k_factor_provisional', Config.K_FACTOR_PROVISIONAL)
+            
+            k_factor_standard = config_service.get('elo.k_factor_standard')
+            if k_factor_standard is None:
+                k_factor_standard = config_service.get('k_factor_standard', Config.K_FACTOR_STANDARD)
+            
+            provisional_match_count = config_service.get('elo.provisional_match_count')
+            if provisional_match_count is None:
+                provisional_match_count = config_service.get('provisional_match_count', Config.PROVISIONAL_MATCH_COUNT)
+            
+            # Debug logging to verify configuration values
+            logger = logging.getLogger(__name__)
+            logger.debug(f"[EloCalculator] K-factor calculation: matches_played={matches_played}, provisional_count={provisional_match_count}, k_provisional={k_factor_provisional}, k_standard={k_factor_standard}")
             
             if matches_played < provisional_match_count:
+                logger.debug(f"[EloCalculator] Using provisional K-factor: {k_factor_provisional}")
                 return k_factor_provisional
+            logger.debug(f"[EloCalculator] Using standard K-factor: {k_factor_standard}")
             return k_factor_standard
         else:
             # Fallback to static configuration

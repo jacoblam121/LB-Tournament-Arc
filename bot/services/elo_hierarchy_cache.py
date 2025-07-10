@@ -69,6 +69,21 @@ class CachedEloHierarchyService:
         logger.info("Clearing entire hierarchy cache")
         self._cache.clear()
     
+    async def calculate_cluster_elo(
+        self, 
+        player_id: int, 
+        cluster_id: Optional[int] = None
+    ) -> Dict[int, int]:
+        """Calculate cluster Elo using prestige weighting system."""
+        try:
+            async with self.session_factory() as session:
+                calculator = EloHierarchyCalculator(session)
+                return await calculator.calculate_cluster_elo(player_id, cluster_id)
+        except Exception as e:
+            logger.error(f"Failed to calculate cluster elo for player {player_id}: {e}", exc_info=True)
+            # Return empty dict to prevent cascading failures
+            return {}
+    
     def _cleanup_cache(self):
         """Remove oldest cache entries to stay within size limit."""
         # Sort by timestamp and keep newest entries
