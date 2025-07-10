@@ -32,6 +32,11 @@ class ScoreType(Enum):
     ALL_TIME = "all_time"  # All-time personal best scores
     WEEKLY = "weekly"      # Weekly competition scores
 
+class HistoryEntryType(Enum):
+    """Type of entry in match history for Phase 3.5"""
+    MATCH = "match"
+    LEADERBOARD = "leaderboard"
+
 class Cluster(Base):
     __tablename__ = 'clusters'
     
@@ -393,7 +398,7 @@ class Match(Base):
     discord_message_id = Column(BigInteger)  # Result message
     
     # Metadata
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=func.now(), index=True)
     
     # Relationships
     event = relationship("Event")
@@ -764,7 +769,7 @@ class LeaderboardScore(Base):
     # This matches the database enum type created in migrations and the CHECK constraint expectations
     score_type = Column(SQLEnum(ScoreType, name="scoretype", values_callable=lambda x: [e.value for e in x]), nullable=False)
     week_number = Column(Integer, nullable=True)  # NULL for all-time scores
-    submitted_at = Column(DateTime, default=func.now())
+    submitted_at = Column(DateTime, default=func.now(), index=True)
     
     # Relationships
     player = relationship("Player")
@@ -1039,4 +1044,4 @@ class AuditLog(Base):
 @event.listens_for(PlayerEventStats, "before_update")
 def _apply_dual_track_floor(mapper, connection, target):
     """Automatically apply scoring Elo floor on every insert/update"""
-    target.scoring_elo = max(target.raw_elo, 1000)
+    target.scoring_elo = max(target.raw_elo or 0, 1000)

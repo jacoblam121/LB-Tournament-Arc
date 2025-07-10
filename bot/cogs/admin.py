@@ -20,6 +20,13 @@ class AdminCog(commands.Cog):
         self.bot = bot
         self.admin_ops = AdminOperations(bot.db, bot.config_service)
         self.logger = logger
+        
+        # Initialize Phase 3.4 services for dependency injection
+        from bot.services.leaderboard_scoring_service import LeaderboardScoringService
+        from bot.services.weekly_processing_service import WeeklyProcessingService
+        
+        self.scoring_service = LeaderboardScoringService(bot.db.session_factory, bot.config_service)
+        self.weekly_processing_service = WeeklyProcessingService(bot.db.session_factory, self.scoring_service)
     
     def cog_check(self, ctx):
         """Check if user is the bot owner"""
@@ -1892,6 +1899,212 @@ class AdminCog(commands.Cog):
                 description=f"An error occurred: {str(e)}",
                 color=discord.Color.red()
             ), ephemeral=True)
+    
+    # ============================================================================
+    # Phase 3.4: Weekly Processing Commands
+    # ============================================================================
+    
+    @commands.hybrid_command(name='admin-weekly-reset', description="Process weekly scores and reset for new week")
+    @app_commands.describe(
+        event_name="Event name or cluster->event format to process weekly scores for",
+        reason="Optional reason for the weekly processing (for audit trail)"
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def weekly_reset(self, ctx, event_name: str, *, reason: Optional[str] = None):
+        """
+        Process weekly scores and reset for new week.
+        
+        This command:
+        - Calculates Z-scores for all weekly submissions
+        - Updates player weekly Elo averages
+        - Applies inactivity penalties for missed weeks
+        - Calculates composite Elo (50/50 all-time vs weekly)
+        - Clears weekly scores for fresh start
+        
+        Usage:
+        !admin-weekly-reset "event_name" [reason]
+        !admin-weekly-reset "cluster->event" [reason]
+        """
+        # Check owner permission
+        if not await self._check_owner_permission(ctx):
+            return
+        
+        try:
+            # Defer response for slash commands to prevent timeout
+            if ctx.interaction:
+                await ctx.defer()
+            
+            # Parse event using cluster->event syntax
+            event_id, parsed_event_name = await self._parse_cluster_event(ctx, event_name)
+            if event_id is None:
+                return  # Error already sent to user
+            
+            # Send initial processing message
+            processing_embed = discord.Embed(
+                title="🔄 Processing Weekly Scores",
+                description=f"Processing weekly scores for **{parsed_event_name}**...\nThis may take a moment.",
+                color=discord.Color.orange()
+            )
+            status_msg = await ctx.send(embed=processing_embed)
+            
+            # Process weekly scores using the pre-initialized service
+            results = await self.weekly_processing_service.process_weekly_scores(event_id)
+            
+            # Create success embed with results
+            success_embed = discord.Embed(
+                title="🏆 Weekly Processing Complete",
+                description=f"**{parsed_event_name}** - Week {results['week_number']}",
+                color=discord.Color.green()
+            )
+            
+            success_embed.add_field(
+                name="📊 Statistics",
+                value=f"Active Players: {results['active_players']}\n"
+                      f"Total Participants: {results['total_participants']}\n"
+                      f"Scores Processed: {results['weekly_scores_processed']}",
+                inline=True
+            )
+            
+            # Show top 5 players
+            top_players = results['top_players'][:5]
+            if top_players:
+                leaderboard_text = ""
+                for i, player in enumerate(top_players, 1):
+                    status_icon = "🟢" if player['was_active_this_week'] else "🔴"
+                    leaderboard_text += f"{i}. {status_icon} **{player['player_name']}**\n"
+                    leaderboard_text += f"   Composite: {player['composite_elo']} Elo\n"
+                    leaderboard_text += f"   (All-time: {player['all_time_elo']}, Weekly Avg: {player['weekly_avg_elo']:.0f})\n\n"
+                
+                success_embed.add_field(
+                    name="🥇 Top 5 Players",
+                    value=leaderboard_text.strip(),
+                    inline=False
+                )
+            
+            if reason:
+                success_embed.add_field(name="Reason", value=reason, inline=False)
+            
+            success_embed.set_footer(text="Weekly scores have been processed and cleared for next week")
+            
+            await status_msg.edit(embed=success_embed)
+            
+        except ValueError as e:
+            # Handle specific validation errors
+            error_embed = discord.Embed(
+                title="❌ Weekly Processing Failed",
+                description=str(e),
+                color=discord.Color.red()
+            )
+            await status_msg.edit(embed=error_embed) if 'status_msg' in locals() else await ctx.send(embed=error_embed)
+            
+        except Exception as e:
+            self.logger.error(f"Error in admin-weekly-reset command: {e}")
+            error_embed = discord.Embed(
+                title="❌ Weekly Processing Error",
+                description=f"An unexpected error occurred: {str(e)}",
+                color=discord.Color.red()
+            )
+            await status_msg.edit(embed=error_embed) if 'status_msg' in locals() else await ctx.send(embed=error_embed)
+    
+    @weekly_reset.autocomplete('event_name')
+    async def weekly_reset_event_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Provide enhanced autocomplete with cluster->event format for leaderboard events only"""
+        try:
+            # Only show events if in a guild
+            if not interaction.guild:
+                return []
+            
+            async with self.bot.db.get_session() as session:
+                from sqlalchemy import select
+                from sqlalchemy.orm import selectinload
+                from bot.database.models import Event, Cluster
+                
+                if not current:
+                    # Show recent leaderboard events without cluster prefix
+                    query = select(Event.name).where(
+                        Event.is_active == True,
+                        Event.score_direction.isnot(None)  # Only leaderboard events
+                    ).limit(25)
+                    result = await session.execute(query)
+                    event_names = result.scalars().all()
+                    return [app_commands.Choice(name=name, value=name) for name in event_names[:25]]
+                
+                # Parse potential cluster->event format
+                cluster_part, separator, event_part = current.partition('->')
+                
+                if separator:
+                    # User is typing cluster->event format
+                    cluster_name = cluster_part.strip()
+                    event_name = event_part.strip()
+                    
+                    # Find matching cluster(s)
+                    cluster_query = select(Cluster).where(Cluster.name.ilike(f"%{cluster_name}%"))
+                    cluster_result = await session.execute(cluster_query)
+                    clusters = list(cluster_result.scalars().all())
+                    
+                    if not clusters:
+                        return []
+                    
+                    # Get leaderboard events across matching clusters
+                    cluster_ids = [c.id for c in clusters[:5]]
+                    event_query = select(Event).options(
+                        selectinload(Event.cluster)
+                    ).where(
+                        Event.cluster_id.in_(cluster_ids),
+                        Event.is_active == True,
+                        Event.score_direction.isnot(None)  # Only leaderboard events
+                    )
+                    if event_name:
+                        event_query = event_query.where(Event.name.ilike(f"%{event_name}%"))
+                    event_query = event_query.limit(25)
+                    
+                    event_result = await session.execute(event_query)
+                    events = list(event_result.scalars().all())
+                    
+                    choices = []
+                    for event in events:
+                        cluster_event_format = f"{event.cluster.name}->{event.name}"
+                        choices.append(app_commands.Choice(name=cluster_event_format, value=cluster_event_format))
+                    
+                    return choices[:25]
+                
+                else:
+                    # Regular event name search for leaderboard events only
+                    query = select(Event).options(
+                        selectinload(Event.cluster)
+                    ).where(
+                        Event.is_active == True,
+                        Event.score_direction.isnot(None),  # Only leaderboard events
+                        Event.name.ilike(f"%{current}%")
+                    ).limit(50)
+                    
+                    result = await session.execute(query)
+                    events = list(result.scalars().all())
+                    
+                    # Group events by name to detect ambiguity
+                    event_names = {}
+                    for event in events:
+                        if event.name not in event_names:
+                            event_names[event.name] = []
+                        event_names[event.name].append(event)
+                    
+                    choices = []
+                    for name, event_list in event_names.items():
+                        if len(event_list) == 1:
+                            # Unambiguous, show simple name
+                            choices.append(app_commands.Choice(name=name, value=name))
+                        else:
+                            # Ambiguous, show cluster->event format for each
+                            for event in event_list:
+                                cluster_event_format = f"{event.cluster.name}->{event.name}"
+                                display_name = f"{name} (in {event.cluster.name})"
+                                choices.append(app_commands.Choice(name=display_name, value=cluster_event_format))
+                    
+                    return choices[:25]
+                    
+        except Exception as e:
+            self.logger.error(f"Error in weekly reset event autocomplete: {e}")
+            return []
 
 
 class AdminConfirmationView(discord.ui.View):
